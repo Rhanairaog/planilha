@@ -1,0 +1,756 @@
+<title>Painel das Madrinhas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Young+Serif&display=swap">
+<style>
+:root{
+  --bg:#F3F4F9; --surface:#FFFFFF; --surface-2:#F8F9FC;
+  --ink:#171B33; --ink-2:#474D6B; --muted:#6F7594;
+  --line:#E1E3EE; --line-strong:#C5C9DC;
+  --accent:#2F3F99; --accent-soft:#E6E9F8; --on-accent:#FFFFFF;
+  --gold:#946A0A; --gold-mark:#D9A93A;
+  --good:#1E7447; --good-soft:#DCF0E3;
+  --warn:#8A5700; --warn-soft:#FAEDD2;
+  --bad:#AE2A1E; --bad-soft:#F9E1DE;
+  --shadow:0 1px 2px rgba(23,27,51,.06),0 4px 16px rgba(23,27,51,.05);
+  --display:"Young Serif",Georgia,"Times New Roman",serif;
+  --body:"Figtree",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0E1120; --surface:#161A2E; --surface-2:#1B2038;
+    --ink:#ECEEF8; --ink-2:#B8BDD8; --muted:#8C92B2;
+    --line:#282D48; --line-strong:#3A4063;
+    --accent:#9DAAF3; --accent-soft:#232A50; --on-accent:#0E1120;
+    --gold:#E8C062; --gold-mark:#E8C062;
+    --good:#6BD6A0; --good-soft:#173628;
+    --warn:#F1B75A; --warn-soft:#3A2D13;
+    --bad:#F28B7F; --bad-soft:#3D1D1A;
+    --shadow:0 1px 2px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0E1120; --surface:#161A2E; --surface-2:#1B2038;
+  --ink:#ECEEF8; --ink-2:#B8BDD8; --muted:#8C92B2;
+  --line:#282D48; --line-strong:#3A4063;
+  --accent:#9DAAF3; --accent-soft:#232A50; --on-accent:#0E1120;
+  --gold:#E8C062; --gold-mark:#E8C062;
+  --good:#6BD6A0; --good-soft:#173628;
+  --warn:#F1B75A; --warn-soft:#3A2D13;
+  --bad:#F28B7F; --bad-soft:#3D1D1A;
+  --shadow:0 1px 2px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:20px;padding-block:28px 64px;display:grid;gap:28px}
+h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance;letter-spacing:-.005em}
+h1{font-size:clamp(28px,4vw,38px);line-height:1.1}
+h2{font-size:21px;line-height:1.2}
+p{margin:0}
+.num{font-variant-numeric:tabular-nums}
+.eyebrow{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+
+/* Cabeçalho */
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px}
+.brand{display:grid;gap:6px}
+.brand .eyebrow{display:flex;align-items:center;gap:8px}
+.brand svg{width:14px;height:14px;fill:var(--gold-mark)}
+.sub{color:var(--ink-2);max-width:62ch}
+.status{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2);background:var(--surface);border:1px solid var(--line);padding:6px 12px;border-radius:999px}
+.status i{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.status[data-s="live"] i{background:var(--good)}
+.status[data-s="ro"] i{background:var(--warn)}
+
+/* Faixa de números */
+.kpis{display:grid;grid-template-columns:1.35fr repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.kpi{background:var(--surface);padding:20px 22px;display:grid;gap:6px;align-content:start}
+.kpi .v{font-family:var(--display);font-size:30px;line-height:1.05}
+.kpi.hero{background:var(--accent);color:var(--on-accent)}
+.kpi.hero .eyebrow,.kpi.hero .d{color:inherit;opacity:.8}
+.kpi.hero .v{font-size:44px}
+.kpi .d{font-size:13px;color:var(--ink-2)}
+.meter{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin-top:4px}
+.meter b{display:block;height:100%;background:var(--good);border-radius:3px}
+
+/* Grade de painéis */
+.grid{display:grid;grid-template-columns:1.6fr 1fr;gap:20px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px 22px;display:grid;gap:14px;align-content:start;min-width:0}
+.panel-h{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:8px 16px}
+.panel-h p{font-size:13px;color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--ink-2)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+.sw.prev{border:1.5px solid var(--line-strong);background:var(--surface-2)}
+.sw.rec{background:var(--accent)}
+.chart{position:relative}
+.chart svg{display:block;width:100%;height:auto;overflow:visible}
+.chart text{fill:var(--muted);font-family:var(--body);font-size:11px}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);font-size:12.5px;padding:8px 10px;border-radius:8px;white-space:nowrap;transform:translate(-50%,-100%);box-shadow:var(--shadow);z-index:3}
+.tip b{font-weight:600}
+
+.bars{display:grid;gap:12px}
+.bar-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;font-size:14px}
+.bar-row .lbl{display:flex;gap:8px;align-items:baseline;min-width:0}
+.bar-row .lbl small{color:var(--muted);font-size:12.5px}
+.bar-row .val{text-align:right;color:var(--ink-2)}
+.track{grid-column:1/-1;height:10px;border-radius:5px;background:var(--surface-2);overflow:hidden}
+.track b{display:block;height:100%;background:var(--accent);border-radius:5px}
+
+.alerts{display:grid;gap:10px;margin:0;padding:0;list-style:none}
+.alerts li{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;font-size:14px}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;letter-spacing:.02em;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.chip.warn{background:var(--warn-soft);color:var(--warn)}
+.chip.bad{background:var(--bad-soft);color:var(--bad)}
+.chip.good{background:var(--good-soft);color:var(--good)}
+.chip.neutral{background:var(--surface-2);color:var(--ink-2);border:1px solid var(--line)}
+.alerts .who{color:var(--ink-2)}
+.alerts button.link{background:none;border:0;padding:0;color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+
+/* Controle de pagamentos */
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.field{display:flex;align-items:center;gap:8px;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:0 10px;height:38px}
+.field input,.field select{border:0;background:transparent;height:100%;outline:none;min-width:0}
+.field input{width:200px}
+.field label{font-size:12.5px;color:var(--muted)}
+.btn{height:38px;padding:0 14px;border-radius:10px;border:1px solid var(--line-strong);background:var(--surface);cursor:pointer;font-weight:600;font-size:14px;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{background:var(--surface-2)}
+.btn.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.year{display:inline-flex;align-items:center;gap:4px;margin-left:auto}
+.year b{font-family:var(--display);font-weight:400;font-size:20px;min-width:56px;text-align:center}
+.year .btn{width:38px;padding:0;justify-content:center}
+.toggle{display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--ink-2);cursor:pointer}
+.toggle input{width:16px;height:16px;accent-color:var(--accent)}
+
+.table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+table{border-collapse:collapse;width:100%;min-width:1080px;font-size:14px}
+th,td{padding:0;text-align:left;border-bottom:1px solid var(--line)}
+thead th{position:sticky;top:0;background:var(--surface-2);font-size:11.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:10px 8px;z-index:1}
+thead th.m{text-align:center;width:44px}
+thead th.m.now{color:var(--accent)}
+tbody tr:hover td{background:var(--surface-2)}
+td{padding:6px 8px;vertical-align:middle}
+td.name{position:sticky;left:0;background:var(--surface);z-index:1;min-width:190px}
+tbody tr:hover td.name{background:var(--surface-2)}
+thead th:first-child{left:0;z-index:2}
+.name button{background:none;border:0;padding:0;cursor:pointer;text-align:left;font-weight:600;color:var(--ink)}
+.name button:hover{color:var(--accent)}
+.name small{display:block;color:var(--muted);font-size:12px}
+td.r{text-align:right;white-space:nowrap}
+.contact{display:flex;align-items:center;gap:6px;white-space:nowrap;color:var(--ink-2)}
+.wa{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:7px;color:var(--good);background:var(--good-soft);text-decoration:none}
+.wa svg{width:14px;height:14px;fill:currentColor}
+td.m{padding:4px 3px;text-align:center}
+.cell{width:36px;height:30px;border-radius:7px;border:1px solid transparent;background:transparent;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:700}
+.cell[data-s="future"]{border-color:var(--line);color:var(--line-strong)}
+.cell[data-s="open"]{border:1.5px dashed var(--warn);color:var(--warn);background:var(--warn-soft)}
+.cell[data-s="idle"]{border-color:var(--line);color:transparent}
+.cell[data-s="paid"]{background:var(--good);color:var(--surface);border-color:var(--good)}
+.cell[data-s="covered"]{background:var(--good-soft);color:var(--good);cursor:default}
+.cell:not([disabled]):hover{box-shadow:0 0 0 2px var(--accent)}
+.cell[disabled]{cursor:default}
+tfoot td{background:var(--surface-2);font-weight:600;font-size:12.5px;padding:10px 6px;border-bottom:0}
+tfoot td.name{background:var(--surface-2)}
+tfoot td.m{font-size:11px;color:var(--ink-2)}
+.key{display:flex;flex-wrap:wrap;gap:14px;font-size:12.5px;color:var(--muted)}
+.key span{display:inline-flex;align-items:center;gap:6px}
+.key .cell{width:22px;height:18px;font-size:10px;cursor:default}
+.empty{padding:28px;text-align:center;color:var(--muted)}
+
+/* Janela de edição */
+dialog{border:1px solid var(--line);border-radius:16px;background:var(--surface);color:var(--ink);padding:0;width:min(480px,calc(100vw - 32px));box-shadow:0 20px 60px rgba(0,0,0,.25)}
+dialog::backdrop{background:rgba(14,17,32,.45)}
+dialog form{display:grid;gap:16px;padding:22px}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fgrid .full{grid-column:1/-1}
+.f{display:grid;gap:4px}
+.f label{font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.f input,.f select{height:40px;border:1px solid var(--line-strong);border-radius:9px;background:var(--surface-2);padding:0 10px}
+.dlg-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+.dlg-note{font-size:13px;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;box-shadow:var(--shadow);z-index:10}
+
+@media (max-width:900px){
+  .kpis{grid-template-columns:1fr 1fr}
+  .kpi.hero{grid-column:1/-1}
+  .grid{grid-template-columns:1fr}
+}
+@media (max-width:520px){
+  .wrap{padding-inline:16px}
+  .kpis{grid-template-columns:1fr}
+  .kpi.hero .v{font-size:38px}
+  .field input{width:140px}
+  .year{margin-left:0}
+  .fgrid{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:no-preference){
+  .track b,.meter b{transition:width .5s ease}
+}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <span class="eyebrow"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0c.5 4 2 5.5 8 8-6 2.5-7.5 4-8 8-.5-4-2-5.5-8-8 6-2.5 7.5-4 8-8z"/></svg>Instituto Fada Madrinha</span>
+      <h1>Painel das Madrinhas</h1>
+      <p class="sub">Arrecadação, presentes garantidos e controle mensal de pagamentos de cada madrinha.</p>
+    </div>
+    <span class="status" id="status" data-s="off"><i></i><span id="status-txt">Carregando dados…</span></span>
+  </header>
+
+  <section class="kpis" aria-label="Resumo da arrecadação">
+    <div class="kpi hero">
+      <span class="eyebrow">Receita recorrente mensal</span>
+      <span class="v num" id="k-mrr">—</span>
+      <span class="d" id="k-mrr-d"></span>
+    </div>
+    <div class="kpi">
+      <span class="eyebrow" id="k-ano-l">Previsto no ano</span>
+      <span class="v num" id="k-ano">—</span>
+      <span class="d" id="k-ano-d"></span>
+    </div>
+    <div class="kpi">
+      <span class="eyebrow" id="k-rec-l">Recebido</span>
+      <span class="v num" id="k-rec">—</span>
+      <span class="d" id="k-rec-d"></span>
+      <div class="meter" aria-hidden="true"><b id="k-rec-m" style="width:0"></b></div>
+    </div>
+    <div class="kpi">
+      <span class="eyebrow">Presentes garantidos</span>
+      <span class="v num" id="k-pres">—</span>
+      <span class="d" id="k-pres-d"></span>
+    </div>
+  </section>
+
+  <div class="grid">
+    <section class="panel" aria-labelledby="h-mes">
+      <div class="panel-h">
+        <h2 id="h-mes">Arrecadação mês a mês</h2>
+        <div class="legend">
+          <span><i class="sw prev"></i>Previsto (mensalidades)</span>
+          <span><i class="sw rec"></i>Recebido</span>
+        </div>
+      </div>
+      <div class="chart" id="chart"></div>
+      <p class="dlg-note" id="chart-note"></p>
+    </section>
+
+    <section class="panel" aria-labelledby="h-comp">
+      <div class="panel-h">
+        <h2 id="h-comp">De onde vem a receita</h2>
+        <p>Valor por ano</p>
+      </div>
+      <div class="bars" id="comp"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="h-reg">
+      <div class="panel-h">
+        <h2 id="h-reg">Madrinhas por região</h2>
+        <p>Pelo DDD do contato</p>
+      </div>
+      <div class="bars" id="reg"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="h-at">
+      <div class="panel-h">
+        <h2 id="h-at">Pontos de atenção no cadastro</h2>
+        <p id="at-count"></p>
+      </div>
+      <ul class="alerts" id="alerts"></ul>
+    </section>
+  </div>
+
+  <section class="panel" aria-labelledby="h-ctl">
+    <div class="panel-h">
+      <h2 id="h-ctl">Controle de pagamentos</h2>
+      <p>Clique no mês para marcar ou desmarcar o pagamento.</p>
+    </div>
+    <div class="toolbar">
+      <div class="field"><label for="q">Buscar</label><input id="q" type="search" placeholder="Nome ou telefone" autocomplete="off"></div>
+      <div class="field"><label for="fp">Plano</label>
+        <select id="fp"><option value="">Todos</option><option>Mensal</option><option>Anual</option></select></div>
+      <div class="field"><label for="fs">Situação</label>
+        <select id="fs"><option value="Ativa">Ativas</option><option value="">Todas</option><option>Pausada</option><option>Encerrada</option></select></div>
+      <label class="toggle"><input id="fo" type="checkbox">Só com pendência</label>
+      <button class="btn primary" id="add" type="button">+ Nova madrinha</button>
+      <div class="year">
+        <button class="btn" id="yp" type="button" aria-label="Ano anterior">‹</button>
+        <b class="num" id="yl">2026</b>
+        <button class="btn" id="yn" type="button" aria-label="Próximo ano">›</button>
+      </div>
+    </div>
+    <div class="key">
+      <span><i class="cell" data-s="paid">✓</i>Pago</span>
+      <span><i class="cell" data-s="open">!</i>Em aberto</span>
+      <span><i class="cell" data-s="covered">A</i>Coberto pela anuidade</span>
+      <span><i class="cell" data-s="future"></i>Mês futuro</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr id="thead"></tr></thead>
+        <tbody id="tbody"></tbody>
+        <tfoot><tr id="tfoot"></tr></tfoot>
+      </table>
+    </div>
+  </section>
+</div>
+
+<dialog id="dlg">
+  <form id="dlg-form" method="dialog">
+    <div>
+      <span class="eyebrow" id="dlg-eyebrow">Madrinha</span>
+      <h2 id="dlg-title">Editar cadastro</h2>
+    </div>
+    <div class="fgrid">
+      <div class="f full"><label for="f-nome">Nome</label><input id="f-nome" required maxlength="80"></div>
+      <div class="f"><label for="f-plano">Plano</label><select id="f-plano"><option>Mensal</option><option>Anual</option></select></div>
+      <div class="f"><label for="f-valor">Valor (R$)</label><input id="f-valor" type="number" min="0" step="1" required></div>
+      <div class="f"><label for="f-pres">Presentes</label><input id="f-pres" type="number" min="0" step="1" required></div>
+      <div class="f"><label for="f-sit">Situação</label><select id="f-sit"><option>Ativa</option><option>Pausada</option><option>Encerrada</option></select></div>
+      <div class="f full"><label for="f-cont">Contato</label><input id="f-cont" maxlength="60" placeholder="(16) 99999-9999"></div>
+    </div>
+    <p class="dlg-note" id="dlg-note"></p>
+    <div class="dlg-actions">
+      <a class="btn" id="dlg-wa" target="_blank" rel="noopener" hidden>Abrir WhatsApp</a>
+      <button class="btn" value="cancel" type="button" id="dlg-cancel">Cancelar</button>
+      <button class="btn primary" id="dlg-save" type="submit">Salvar</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+  // Retrato da planilha "Planilha de madrinhas" (usado até o banco compartilhado responder).
+  const SNAPSHOT = [
+    ["adriana-sola","Adriana Sola","Mensal",200,2,"Ativa","(11) 99990-7677"],
+    ["ana-haberfeld","Ana Haberfeld","Anual",1200,1,"Ativa","(11) 93328-0204"],
+    ["andrea-branco","Andrea Branco","Mensal",300,3,"Ativa","(18) 99772-7904"],
+    ["artur-dionizio","Artur Dionizio","Mensal",100,1,"Ativa","E-mail"],
+    ["carolina-serrano","Carolina Serrano","Mensal",200,2,"Ativa","(11) 98585-2524"],
+    ["claudia-murad","Claudia Murad","Mensal",100,1,"Ativa","+1 (305) 586-3468"],
+    ["claudia-nobrega","Claudia Nobrega","Mensal",100,1,"Ativa","(16) 99741-9992"],
+    ["chiara-spedicato","Chiara Spedicato","Mensal",100,1,"Ativa","(16) 98126-7743"],
+    ["edineia-caio","Edinéia (CAIO)","Mensal",100,1,"Ativa","-"],
+    ["fabiana-pinheiro","Fabiana Pinheiro","Mensal",100,1,"Ativa","(18) 99771-2610"],
+    ["flavia-defini","Flavia Defini","Mensal",100,1,"Ativa","(16) 98136-4422"],
+    ["flavia-matturo","Flavia Matturo","Mensal",100,1,"Ativa","(16) 98128-8129"],
+    ["livia-magdalena","Livia Magdalena","Mensal",100,1,"Ativa","(16) 99768-1233"],
+    ["laura-mae-enrico","Laura (Mãe Enrico)","Mensal",100,1,"Ativa","(16) 98169-8667"],
+    ["lucila-jorge","Lucila Jorge","Mensal",100,1,"Ativa","(16) 99133-4430"],
+    ["isabel-candido","Isabel Candido","Anual",1200,1,"Ativa","(11) 98477-9837"],
+    ["manoela-zauith","Manoela Zauith","Mensal",100,1,"Ativa","(16) 99236-2570"],
+    ["mariana-castilho","Mariana Castilho","Mensal",100,2,"Ativa","(16) 99209-9674"],
+    ["monica-meirelles","Mônica Meirelles","Mensal",100,1,"Ativa","(16) 98148-0000"],
+    ["marilda-borges","Marilda Borges","Mensal",100,1,"Ativa","(16) 99132-3059"],
+    ["regina-meirelles","Regina Meirelles","Mensal",100,1,"Ativa","(16) 99733-6600"],
+    ["renata-vicentini","Renata Vicentini","Mensal",100,1,"Ativa","(16) 99796-1551"],
+    ["simone-junqueira","Simone Junqueira","Mensal",100,1,"Ativa","(16) 99219-4950"],
+    ["tatiana-cury","Tatiana Cury","Mensal",300,3,"Ativa","(16) 99789-3858"],
+    ["tania-galdeano","Tânia Galdeano","Mensal",100,1,"Ativa","(16) 98125-0004"],
+    ["wolney-arruda","Wolney Arruda","Mensal",100,1,"Ativa","(18) 98112-0077"],
+    ["yara-figueiredo","Yara Figueiredo","Mensal",200,2,"Ativa","(16) 99796-3386"],
+    ["luciana-saboia","Luciana Saboia","Mensal",100,1,"Ativa","(11) 99406-0904"],
+    ["monica-almeida","Mônica Almeida","Mensal",200,2,"Ativa","(11) 97337-2801"],
+    ["luciana-figueiredo","Luciana Figueiredo","Mensal",200,2,"Ativa","(16) 99640-2662"],
+    ["martha","Martha","Anual",200,2,"Ativa","(16) 99136-6855"],
+    ["patricia-joao","Patrícia (João)","Mensal",100,1,"Ativa","(16) 99202-9839"],
+    ["isabella-junqueira","Isabella Junqueira","Anual",100,1,"Ativa","(16) 99614-1260"],
+    ["thaissa-campos","Thaissa Campos","Mensal",100,1,"Ativa","(16) 99166-5765"],
+    ["pati-monegoglia","Pati Monegoglia","Mensal",100,1,"Ativa","(11) 99930-6350"],
+    ["mirella-palma","Mirella Palma","Anual",300,3,"Ativa","(11) 99165-1070"],
+    ["juliane-mateo","Juliane Mateo","Mensal",100,1,"Ativa","(16) 999750-9694"],
+    ["taiza","Taiza","Mensal",100,1,"Ativa","(11) 99930-7783"],
+    ["alessandra-moggialore","Alessandra Moggialore","Anual",100,1,"Ativa","(11) 99967-8205"],
+    ["fernanda-naman","Fernanda Naman","Mensal",100,1,"Ativa","(11) 98104-1177"],
+    ["veri-pagano","Veri Pagano","Mensal",100,1,"Ativa","(16) 99616-1100"],
+    ["paula-vancine","Paula Vancine","Mensal",100,1,"Ativa","(16) 98145-8244"],
+    ["paula-natel","Paula Natel","Mensal",100,1,"Ativa","(11) 99647-2667"]
+  ].map(([id,nome,plano,valor,presentes,situacao,contato],i)=>({id,nome,plano,valor,presentes,situacao,contato,ordem:i}));
+
+  const MESES = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
+  const MESES_LONGOS = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+  const REGIOES = {"11":"São Paulo e Grande SP","16":"Ribeirão Preto e região","18":"Presidente Prudente e região"};
+  const brl = new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:0});
+  const int = new Intl.NumberFormat("pt-BR");
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const hoje = new Date();
+
+  const state = {
+    madrinhas: SNAPSHOT,
+    fonte: "snapshot",
+    pagamentos: {},          // madrinhaId -> {"1": {valor, em}, ...}
+    ano: hoje.getFullYear(),
+    db: null,
+    podeEditar: false,
+    q: "", fp: "", fs: "Ativa", fo: false
+  };
+  try { const a = Number(localStorage.getItem("painel-ano")); if (a >= 2020 && a <= 2100) state.ano = a; } catch (e) {}
+
+  // ---------- Regras de negócio ----------
+  function telefone(contato){
+    const raw = String(contato || "").trim();
+    const d = raw.replace(/\D/g,"");
+    if (raw.startsWith("+")) return {ddd:"+" + d.slice(0, d.length - 10), valido: d.length >= 11, wa: d, regiao: "Exterior"};
+    if (d.length >= 10){
+      const ddd = d.slice(0,2);
+      return {ddd, valido: d.length === 11, wa: d.length === 11 ? "55" + d : "", regiao: REGIOES[ddd] || ("DDD " + ddd)};
+    }
+    return {ddd:"", valido:false, wa:"", regiao:"Sem telefone"};
+  }
+  const ativas = () => state.madrinhas.filter(m => m.situacao === "Ativa");
+  const mesesPassados = () => state.ano < hoje.getFullYear() ? 12 : state.ano > hoje.getFullYear() ? 0 : hoje.getMonth() + 1;
+  function pagosDe(m){ return state.pagamentos[m.id] || {}; }
+  function mesAnuidade(m){ const k = Object.keys(pagosDe(m)); return k.length ? Math.min(...k.map(Number)) : 0; }
+  function totalPago(m){ return Object.values(pagosDe(m)).reduce((s,p)=>s + (Number(p.valor)||0), 0); }
+  function pendencias(m){
+    if (m.situacao !== "Ativa") return 0;
+    const n = mesesPassados();
+    if (m.plano === "Anual") return n > 0 && !mesAnuidade(m) ? 1 : 0;
+    let c = 0; const p = pagosDe(m);
+    for (let i = 1; i <= n; i++) if (!p[i]) c++;
+    return c;
+  }
+  function estadoCelula(m, mes){
+    const p = pagosDe(m);
+    if (p[mes]) return "paid";
+    if (m.plano === "Anual"){
+      const pago = mesAnuidade(m);
+      if (pago) return "covered";
+      return mes <= mesesPassados() && m.situacao === "Ativa" && mes === mesesPassados() ? "open" : (mes <= mesesPassados() ? "idle" : "future");
+    }
+    if (m.situacao !== "Ativa") return mes <= mesesPassados() ? "idle" : "future";
+    return mes <= mesesPassados() ? "open" : "future";
+  }
+
+  // ---------- Números do topo ----------
+  function renderKpis(){
+    const at = ativas();
+    const mensais = at.filter(m => m.plano === "Mensal");
+    const anuais = at.filter(m => m.plano === "Anual");
+    const mrr = mensais.reduce((s,m)=>s+m.valor,0);
+    const anualTotal = anuais.reduce((s,m)=>s+m.valor,0);
+    const previstoAno = mrr * 12 + anualTotal;
+    const n = mesesPassados();
+    const previstoAte = mrr * n + (n > 0 ? anualTotal : 0);
+    const recebido = state.madrinhas.reduce((s,m)=>s+totalPago(m),0);
+    const pres = at.reduce((s,m)=>s+m.presentes,0);
+
+    $("k-mrr").textContent = brl.format(mrr);
+    $("k-mrr-d").textContent = `${mensais.length} madrinhas no plano mensal · média de ${brl.format(mensais.length ? mrr/mensais.length : 0)}`;
+    $("k-ano-l").textContent = `Previsto em ${state.ano}`;
+    $("k-ano").textContent = brl.format(previstoAno);
+    $("k-ano-d").textContent = `${brl.format(mrr*12)} em mensalidades + ${brl.format(anualTotal)} de ${anuais.length} anuidades`;
+    $("k-rec-l").textContent = `Recebido em ${state.ano}`;
+    $("k-rec").textContent = brl.format(recebido);
+    const pct = previstoAte ? Math.min(100, recebido / previstoAte * 100) : 0;
+    $("k-rec-d").textContent = n
+      ? `${Math.round(pct)}% dos ${brl.format(previstoAte)} previstos até ${MESES_LONGOS[n-1]}`
+      : "O ano ainda não começou";
+    $("k-rec-m").style.width = pct + "%";
+    $("k-pres").textContent = int.format(pres);
+    $("k-pres-d").textContent = `${at.length} madrinhas ativas · cada R$ 100 mensais garante 1 presente`;
+  }
+
+  // ---------- Gráfico mensal ----------
+  function renderChart(){
+    const at = ativas();
+    const mrr = at.filter(m => m.plano === "Mensal").reduce((s,m)=>s+m.valor,0);
+    const rec = Array(12).fill(0);
+    state.madrinhas.forEach(m => Object.entries(pagosDe(m)).forEach(([k,p]) => { rec[Number(k)-1] += Number(p.valor)||0; }));
+    const max = Math.max(mrr, ...rec, 1);
+    const step = max > 4000 ? 2000 : max > 2000 ? 1000 : 500;
+    const top = Math.ceil(max * 1.08 / step) * step;
+    const W = 720, H = 250, L = 54, R = 8, T = 12, B = 28;
+    const pw = W - L - R, ph = H - T - B, gw = pw / 12;
+    const y = v => T + ph - v / top * ph;
+    const cur = state.ano === hoje.getFullYear() ? hoje.getMonth() : -1;
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Previsto e recebido por mês em ${state.ano}">`;
+    for (let v = 0; v <= top; v += step){
+      s += `<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1"${v? ' stroke-dasharray="2 4"':''}/>`;
+      s += `<text x="${L-8}" y="${y(v)+4}" text-anchor="end">${v ? (v/1000).toLocaleString("pt-BR") + " mil" : "0"}</text>`;
+    }
+    for (let i = 0; i < 12; i++){
+      const cx = L + gw*i + gw/2, bw = Math.min(34, gw*.62), rw = bw*.56;
+      if (mrr) s += `<path d="${roundTop(cx-bw/2, y(mrr), bw, y(0)-y(mrr), 4)}" fill="var(--surface-2)" stroke="var(--line-strong)" stroke-width="1.2"/>`;
+      if (rec[i]) s += `<path d="${roundTop(cx-rw/2, y(rec[i]), rw, y(0)-y(rec[i]), 3)}" fill="var(--accent)"/>`;
+      s += `<text x="${cx}" y="${H-8}" text-anchor="middle"${i===cur?' style="fill:var(--accent);font-weight:700"':''}>${MESES[i]}</text>`;
+      s += `<rect x="${L+gw*i}" y="${T}" width="${gw}" height="${ph}" fill="transparent" data-i="${i}"/>`;
+    }
+    s += `</svg><div class="tip" id="tip" hidden></div>`;
+    const box = $("chart"); box.innerHTML = s;
+    const tip = $("tip");
+    box.querySelectorAll("rect[data-i]").forEach(r => {
+      const show = () => {
+        const i = Number(r.dataset.i), bb = r.getBoundingClientRect(), cb = box.getBoundingClientRect();
+        tip.innerHTML = `<b>${MESES_LONGOS[i]} de ${state.ano}</b><br>Previsto: ${brl.format(mrr)}<br>Recebido: ${brl.format(rec[i])}`;
+        tip.style.left = Math.max(70, Math.min(cb.width-70, bb.left - cb.left + bb.width/2)) + "px";
+        tip.style.top = (y(Math.max(mrr, rec[i])) / H * cb.height - 8) + "px";
+        tip.hidden = false;
+      };
+      r.addEventListener("pointerenter", show);
+      r.addEventListener("pointerleave", () => tip.hidden = true);
+    });
+    const anual = at.filter(m => m.plano === "Anual").reduce((s,m)=>s+m.valor,0);
+    $("chart-note").textContent = `As anuidades (${brl.format(anual)} no ano) não têm mês fixo na planilha. Elas entram no recebido do mês em que forem marcadas.`;
+  }
+  function roundTop(x, y, w, h, r){
+    if (h <= 0) return "";
+    r = Math.min(r, w/2, h);
+    return `M${x},${y+h}V${y+r}Q${x},${y} ${x+r},${y}H${x+w-r}Q${x+w},${y} ${x+w},${y+r}V${y+h}Z`;
+  }
+
+  // ---------- Barras de composição e região ----------
+  function barras(el, rows){
+    const max = Math.max(...rows.map(r => r.valor), 1);
+    el.innerHTML = rows.map(r => `
+      <div class="bar-row">
+        <span class="lbl">${esc(r.rot)} <small>${esc(r.det)}</small></span>
+        <span class="val num">${brl.format(r.valor)}</span>
+        <span class="track" aria-hidden="true"><b style="width:${(r.valor/max*100).toFixed(1)}%"></b></span>
+      </div>`).join("") || `<p class="empty">Sem madrinhas ativas.</p>`;
+  }
+  function renderComp(){
+    const at = ativas(); const grupos = {};
+    at.forEach(m => {
+      const k = m.plano === "Anual" ? "Anual" : `Mensal ${m.valor}`;
+      (grupos[k] ||= {rot: m.plano === "Anual" ? "Plano anual" : `Mensal de ${brl.format(m.valor)}`, n:0, valor:0, ord: m.plano === "Anual" ? 1e9 : m.valor});
+      grupos[k].n++; grupos[k].valor += m.plano === "Anual" ? m.valor : m.valor * 12;
+    });
+    const total = Object.values(grupos).reduce((s,g)=>s+g.valor,0);
+    barras($("comp"), Object.values(grupos).sort((a,b)=>b.valor-a.valor).map(g => ({
+      rot: g.rot, valor: g.valor, det: `${g.n} ${g.n===1?"madrinha":"madrinhas"} · ${Math.round(g.valor/total*100)}%`
+    })));
+  }
+  function renderReg(){
+    const g = {};
+    ativas().forEach(m => {
+      const r = telefone(m.contato).regiao;
+      (g[r] ||= {rot:r, n:0, valor:0}); g[r].n++; g[r].valor += m.plano === "Anual" ? m.valor : m.valor*12;
+    });
+    barras($("reg"), Object.values(g).sort((a,b)=>b.valor-a.valor).map(r => ({rot:r.rot, valor:r.valor, det:`${r.n} ${r.n===1?"madrinha":"madrinhas"}`})));
+  }
+
+  // ---------- Pontos de atenção ----------
+  function renderAlerts(){
+    const out = [];
+    ativas().forEach(m => {
+      const t = telefone(m.contato);
+      if (m.plano === "Anual" && m.valor < 1200)
+        out.push({c:"warn", tag:"Valor anual", m, txt:`anual de ${brl.format(m.valor)} com ${m.presentes} ${m.presentes===1?"presente":"presentes"}. Confirme se o valor é por ano ou por mês.`});
+      if (m.plano === "Mensal" && m.valor/100 !== m.presentes)
+        out.push({c:"warn", tag:"Presentes", m, txt:`paga ${brl.format(m.valor)} por mês, mas consta com ${m.presentes} presentes.`});
+      if (!t.ddd)
+        out.push({c:"bad", tag:"Sem telefone", m, txt:`o contato registrado é “${m.contato}”.`});
+      else if (!t.valido)
+        out.push({c:"bad", tag:"Telefone", m, txt:`o número ${m.contato} tem dígitos a mais ou a menos.`});
+      if (!m.nome.trim().includes(" "))
+        out.push({c:"neutral", tag:"Nome", m, txt:"cadastro sem sobrenome."});
+    });
+    $("at-count").textContent = out.length ? `${out.length} ${out.length===1?"item":"itens"}` : "";
+    $("alerts").innerHTML = out.length ? out.map(a => `
+      <li><span class="chip ${a.c}">${esc(a.tag)}</span>
+      <span class="who"><button class="link" type="button" data-edit="${esc(a.m.id)}">${esc(a.m.nome.trim())}</button>: ${esc(a.txt)}</span></li>`).join("")
+      : `<li><span class="chip good">Tudo certo</span><span class="who">Nenhuma inconsistência no cadastro.</span></li>`;
+  }
+
+  // ---------- Tabela de controle ----------
+  const WA_ICON = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.2 2.2 2.2 0 0 0 .1-1.2c0-.1-.2-.2-.5-.3z"/></svg>`;
+  function linkWa(m){
+    const t = telefone(m.contato); if (!t.wa) return "";
+    const pend = pendencias(m);
+    const msg = pend
+      ? `Olá, ${m.nome.split(" ")[0]}! Aqui é do Instituto Fada Madrinha. Passando para lembrar ${m.plano === "Anual" ? `da anuidade de ${state.ano}` : `da contribuição de madrinha (${pend} ${pend===1?"mês":"meses"} em aberto em ${state.ano})`}. Muito obrigada por fazer parte!`
+      : `Olá, ${m.nome.split(" ")[0]}! Aqui é do Instituto Fada Madrinha.`;
+    return `https://wa.me/${t.wa}?text=${encodeURIComponent(msg)}`;
+  }
+  function visiveis(){
+    const q = state.q.trim().toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu,"");
+    return state.madrinhas.filter(m =>
+      (!state.fs || m.situacao === state.fs) &&
+      (!state.fp || m.plano === state.fp) &&
+      (!state.fo || pendencias(m) > 0) &&
+      (!q || (m.nome + " " + m.contato).toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu,"").includes(q) || m.contato.replace(/\D/g,"").includes(q.replace(/\D/g,"") || "@"))
+    );
+  }
+  function renderTabela(){
+    const cur = state.ano === hoje.getFullYear() ? hoje.getMonth() : -1;
+    $("yl").textContent = state.ano;
+    $("thead").innerHTML = `<th>Madrinha</th><th>Contato</th><th class="r">Valor</th>` +
+      MESES.map((m,i)=>`<th class="m${i===cur?" now":""}">${m}</th>`).join("") + `<th class="r">Pago no ano</th>`;
+    const rows = visiveis();
+    const dis = state.podeEditar ? "" : " disabled";
+    $("tbody").innerHTML = rows.length ? rows.map(m => {
+      const wa = linkWa(m), pend = pendencias(m);
+      const cells = MESES.map((_,i) => {
+        const s = estadoCelula(m, i+1);
+        const label = {paid:"Pago",open:"Em aberto",covered:"Coberto pela anuidade",future:"Mês futuro",idle:"Sem cobrança"}[s];
+        const sym = {paid:"✓",open:"!",covered:"A",future:"",idle:""}[s];
+        const lock = s === "covered" ? " disabled" : dis;
+        return `<td class="m"><button class="cell" type="button" data-s="${s}" data-id="${esc(m.id)}" data-mes="${i+1}" aria-label="${esc(m.nome)}, ${MESES_LONGOS[i]}: ${label}" title="${label}"${lock}>${sym}</button></td>`;
+      }).join("");
+      const sitChip = m.situacao !== "Ativa" ? ` <span class="chip neutral">${esc(m.situacao)}</span>` : "";
+      const pendChip = pend ? `<span class="chip warn">${m.plano==="Anual" ? "Anuidade pendente" : pend + (pend===1?" mês":" meses")}</span>` : "";
+      return `<tr>
+        <td class="name"><button type="button" data-edit="${esc(m.id)}">${esc(m.nome.trim())}</button>${sitChip}<small>${esc(m.plano)} · ${m.presentes} ${m.presentes===1?"presente":"presentes"}</small></td>
+        <td><span class="contact">${esc(m.contato)}${wa ? `<a class="wa" href="${wa}" target="_blank" rel="noopener" title="Enviar mensagem pelo WhatsApp" aria-label="WhatsApp de ${esc(m.nome)}">${WA_ICON}</a>` : ""}</span></td>
+        <td class="r num">${brl.format(m.valor)}${m.plano==="Anual"?"<small style='color:var(--muted)'>/ano</small>":""}</td>
+        ${cells}
+        <td class="r num">${brl.format(totalPago(m))}<br>${pendChip}</td>
+      </tr>`;
+    }).join("") : `<tr><td colspan="16" class="empty">Nenhuma madrinha encontrada com esses filtros.</td></tr>`;
+    const somaMes = Array(12).fill(0); let tot = 0;
+    rows.forEach(m => Object.entries(pagosDe(m)).forEach(([k,p]) => { somaMes[Number(k)-1] += Number(p.valor)||0; tot += Number(p.valor)||0; }));
+    $("tfoot").innerHTML = `<td class="name">Total recebido (${rows.length})</td><td></td><td></td>` +
+      somaMes.map(v => `<td class="m num">${v ? (v >= 1000 ? (v/1000).toLocaleString("pt-BR",{maximumFractionDigits:1}) + " mil" : int.format(v)) : "–"}</td>`).join("") +
+      `<td class="r num">${brl.format(tot)}</td>`;
+  }
+
+  function renderStatus(){
+    const el = $("status"), t = $("status-txt");
+    if (!state.db){ el.dataset.s = "off"; t.textContent = "Somente leitura · retrato da planilha"; return; }
+    if (!state.podeEditar){ el.dataset.s = "ro"; t.textContent = "Somente leitura · sem permissão para editar"; return; }
+    el.dataset.s = "live";
+    t.textContent = state.fonte === "db" ? "Ao vivo · compartilhado com a equipe" : "Ao vivo · aguardando o cadastro";
+    $("add").disabled = state.fonte !== "db";
+  }
+
+  function render(){ renderKpis(); renderChart(); renderComp(); renderReg(); renderAlerts(); renderTabela(); renderStatus(); }
+
+  // ---------- Interações ----------
+  let toastT;
+  function toast(msg){ const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(()=>t.hidden = true, 2800); }
+  function debounce(fn, ms){ let t; return (...a) => { clearTimeout(t); t = setTimeout(()=>fn(...a), ms); }; }
+
+  $("q").addEventListener("input", debounce(e => { state.q = e.target.value; renderTabela(); }, 120));
+  $("fp").addEventListener("change", e => { state.fp = e.target.value; renderTabela(); });
+  $("fs").addEventListener("change", e => { state.fs = e.target.value; renderTabela(); });
+  $("fo").addEventListener("change", e => { state.fo = e.target.checked; renderTabela(); });
+  function mudarAno(d){
+    state.ano += d; try { localStorage.setItem("painel-ano", state.ano); } catch (e) {}
+    state.pagamentos = {}; render(); assinarPagamentos();
+  }
+  $("yp").addEventListener("click", () => mudarAno(-1));
+  $("yn").addEventListener("click", () => mudarAno(1));
+
+  // Uma gravação por vez em cada documento.
+  const filas = {};
+  function gravar(path, fn){
+    const run = () => fn(state.db.doc(path));
+    filas[path] = (filas[path] || Promise.resolve()).then(run, run);
+    return filas[path];
+  }
+  function erroGravacao(e){
+    if (e && e.code === "invalid_argument"){ state.podeEditar = false; render(); toast("Você não tem permissão para editar este painel."); }
+    else if (e && e.code === "quota_exceeded") toast("O limite de registros foi atingido. Avise quem administra o painel.");
+    else toast("Não foi possível salvar. Verifique a conexão e tente de novo.");
+  }
+
+  document.addEventListener("click", e => {
+    const c = e.target.closest("button.cell[data-id]");
+    if (c && !c.disabled && state.podeEditar){
+      const m = state.madrinhas.find(x => x.id === c.dataset.id); if (!m) return;
+      const mes = c.dataset.mes, ano = state.ano;
+      const atual = {...pagosDe(m)};
+      const marcando = !atual[mes];
+      if (marcando){
+        if (m.plano === "Anual") for (const k in atual) delete atual[k];
+        atual[mes] = {valor: m.valor, em: new Date().toISOString().slice(0,10)};
+      } else delete atual[mes];
+      state.pagamentos[m.id] = atual; render();
+      gravar(`pagamentos/${ano}-${m.id}`, ref => ref.set({madrinha: m.id, ano, meses: atual}))
+        .then(() => toast(marcando ? `${m.nome.trim()}: ${MESES_LONGOS[mes-1]} marcado como pago.` : `${m.nome.trim()}: pagamento de ${MESES_LONGOS[mes-1]} removido.`))
+        .catch(erroGravacao);
+      return;
+    }
+    const ed = e.target.closest("[data-edit]");
+    if (ed) abrirDialogo(state.madrinhas.find(x => x.id === ed.dataset.edit));
+  });
+
+  // ---------- Janela de cadastro ----------
+  let editando = null;
+  function abrirDialogo(m){
+    editando = m || null;
+    $("dlg-eyebrow").textContent = m ? m.plano + " · " + m.situacao : "Cadastro";
+    $("dlg-title").textContent = m ? m.nome.trim() : "Nova madrinha";
+    $("f-nome").value = m ? m.nome.trim() : "";
+    $("f-plano").value = m ? m.plano : "Mensal";
+    $("f-valor").value = m ? m.valor : 100;
+    $("f-pres").value = m ? m.presentes : 1;
+    $("f-sit").value = m ? m.situacao : "Ativa";
+    $("f-cont").value = m ? m.contato : "";
+    const ok = state.podeEditar && state.fonte === "db";
+    ["f-nome","f-plano","f-valor","f-pres","f-sit","f-cont"].forEach(id => $(id).disabled = !ok);
+    $("dlg-save").hidden = !ok;
+    const wa = m ? linkWa(m) : "";
+    $("dlg-wa").hidden = !wa; if (wa) $("dlg-wa").href = wa;
+    $("dlg-note").textContent = ok ? (m && pendencias(m) ? `${pendencias(m)} ${m.plano==="Anual"?"anuidade pendente":"mês(es) em aberto"} em ${state.ano}. O botão do WhatsApp já abre com uma mensagem de lembrete.` : "")
+      : "Este painel está em modo leitura. As alterações ficam disponíveis quando o cadastro compartilhado estiver ativo.";
+    $("dlg").showModal();
+  }
+  $("add").addEventListener("click", () => abrirDialogo(null));
+  $("dlg-cancel").addEventListener("click", () => $("dlg").close());
+  const slug = s => s.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,60) || "madrinha";
+  $("dlg-form").addEventListener("submit", e => {
+    e.preventDefault();
+    if (!state.podeEditar || state.fonte !== "db") return;
+    const nome = $("f-nome").value.trim();
+    const valor = Math.max(0, Math.round(Number($("f-valor").value) || 0));
+    const presentes = Math.max(0, Math.round(Number($("f-pres").value) || 0));
+    if (!nome){ $("f-nome").focus(); return; }
+    let id = editando ? editando.id : slug(nome);
+    if (!editando && state.madrinhas.some(m => m.id === id)) id += "-" + Math.random().toString(36).slice(2,6);
+    const ordem = editando ? editando.ordem : Math.max(-1, ...state.madrinhas.map(m => m.ordem ?? 0)) + 1;
+    const doc = {nome, plano: $("f-plano").value, valor, presentes, situacao: $("f-sit").value, contato: $("f-cont").value.trim(), ordem};
+    const i = state.madrinhas.findIndex(m => m.id === id);
+    const novo = {id, ...doc};
+    state.madrinhas = i >= 0 ? state.madrinhas.map(m => m.id === id ? novo : m) : [...state.madrinhas, novo];
+    $("dlg").close(); render();
+    gravar(`madrinhas/${id}`, ref => ref.set(doc)).then(() => toast(editando ? "Cadastro atualizado." : `${nome} entrou para o time de madrinhas.`)).catch(erroGravacao);
+  });
+
+  // ---------- Banco compartilhado ----------
+  let pararPag = null;
+  function assinarPagamentos(){
+    if (!state.db) return;
+    if (pararPag) pararPag();
+    const ano = state.ano;
+    pararPag = state.db.collection("pagamentos").where("ano","==",ano).onSnapshot(snap => {
+      if (ano !== state.ano) return;
+      const p = {};
+      snap.docs.forEach(d => { const v = d.data(); if (v && v.madrinha) p[v.madrinha] = {...(v.meses || {})}; });
+      state.pagamentos = p; render();
+    }, () => {});
+  }
+  async function conectar(){
+    if (!window.claude || !window.claude.use){ renderStatus(); return; }
+    const db = await window.claude.use("db");
+    if (!db){ renderStatus(); return; }
+    state.db = db; state.podeEditar = true;
+    try {
+      const user = await window.claude.use("user");
+      if (user){ const can = await user.can("data.write"); if (can === false) state.podeEditar = false; }
+    } catch (e) {}
+    renderStatus();
+    db.collection("madrinhas").onSnapshot(snap => {
+      if (snap.empty){ state.fonte = "snapshot"; render(); return; }
+      state.fonte = "db";
+      state.madrinhas = snap.docs.map(d => ({id: d.id, ...d.data()}))
+        .map(m => ({...m, valor: Number(m.valor)||0, presentes: Number(m.presentes)||0, contato: String(m.contato||""), nome: String(m.nome||"")}))
+        .sort((a,b) => (a.ordem ?? 1e9) - (b.ordem ?? 1e9) || a.nome.localeCompare(b.nome,"pt-BR"));
+      render();
+    }, e => { if (e && e.code === "revoked"){ state.db = null; state.podeEditar = false; render(); } });
+    assinarPagamentos();
+  }
+
+  render();
+  conectar();
+})();
+</script>
