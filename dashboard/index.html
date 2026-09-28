@@ -171,8 +171,8 @@ tfoot td.m{font-size:11px;color:var(--ink-2)}
 .rule{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;font-size:14px;color:var(--ink-2)}
 .an-table{min-width:940px}
 .an-table td{padding:8px;white-space:nowrap}
-.an-table select{height:34px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface-2);padding:0 8px;max-width:100%}
-.an-table select[disabled]{opacity:.6}
+.an-table select,.an-table input{height:34px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface-2);padding:0 8px;max-width:100%}
+.an-table select[disabled],.an-table input[disabled]{opacity:.6}
 .an-table .name{min-width:170px}
 
 /* Assinaturas acabando */
@@ -307,7 +307,7 @@ dialog form{display:grid;gap:16px;padding:22px}
   <section class="panel" aria-labelledby="h-an">
     <div class="panel-h">
       <h2 id="h-an">Anuidades</h2>
-      <p>Informe quando cada madrinha anual renova e quando pagou.</p>
+      <p>Informe a data do pagamento. A renovação é calculada a partir dela.</p>
     </div>
     <div class="rule">
       <span>O pagamento anual cobre:</span>
@@ -319,7 +319,7 @@ dialog form{display:grid;gap:16px;padding:22px}
     <div class="table-wrap">
       <table class="an-table">
         <thead><tr>
-          <th>Madrinha</th><th>Valor informado</th><th>Valor no ano</th><th>Renova em</th><th id="an-pago-h">Pagou em</th><th>Coberta até</th><th>Situação</th>
+          <th>Madrinha</th><th>Valor informado</th><th>Valor no ano</th><th>Data do pagamento</th><th>Próxima renovação</th><th>Situação</th>
         </tr></thead>
         <tbody id="an-body"></tbody>
       </table>
@@ -454,7 +454,7 @@ dialog form{display:grid;gap:16px;padding:22px}
   // Assinatura padrão: 12 meses a partir do início (termina na véspera do mesmo dia, um ano depois).
   const fimPadrao = ini => { const d = parseData(ini); return d ? isoData(new Date(d.getFullYear(), d.getMonth()+12, d.getDate()-1)) : ""; };
   function diasParaFim(m){
-    const f = parseData(m.fim); if (!f) return null;
+    const f = parseData(fimEfetivo(m)); if (!f) return null;
     return Math.round((f - new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate())) / DIA);
   }
 
@@ -528,6 +528,26 @@ dialog form{display:grid;gap:16px;padding:22px}
     if (m.plano === "Anual") return estadoAnual(m, mes);
     if (m.situacao !== "Ativa") return mes <= mesesPassados() ? "idle" : "future";
     return mes <= mesesPassados() ? "open" : "future";
+  }
+  // Data em que a anuidade foi paga naquele ano. Registros antigos só guardam o mês: usa o dia 1º.
+  function dataPagamento(pag, ano){
+    const mes = primeiroMes(pag); if (!mes) return "";
+    const em = (pag[mes] && pag[mes].em) || "", d = parseData(em);
+    return d && d.getFullYear() === ano && d.getMonth() + 1 === mes ? em : `${ano}-${String(mes).padStart(2,"0")}-01`;
+  }
+  // Próxima renovação, a partir do pagamento mais recente (deste ano ou do anterior).
+  function renovacaoAnual(m){
+    const ini = dataPagamento(pagosDe(m), state.ano) || dataPagamento(state.pagAnt[m.id] || {}, state.ano - 1);
+    const d = parseData(ini); if (!d) return null;
+    return state.cobertura === "calendario" ? new Date(d.getFullYear() + 1, 0, 1) : new Date(d.getFullYear() + 1, d.getMonth(), d.getDate());
+  }
+  // Fim da assinatura: na anuidade vem do pagamento; nos demais casos, do cadastro.
+  function fimEfetivo(m){
+    if (m.plano === "Anual"){
+      const r = renovacaoAnual(m);
+      if (r) return isoData(new Date(r.getFullYear(), r.getMonth(), r.getDate() - 1));
+    }
+    return m.fim || "";
   }
   // Até quando a anuidade cobre, em texto curto (ex.: "abr/2027").
   function cobertaAte(m){
@@ -715,7 +735,7 @@ dialog form{display:grid;gap:16px;padding:22px}
       const sitChip = m.situacao !== "Ativa" ? ` <span class="chip neutral">${esc(m.situacao)}</span>` : "";
       const pendChip = pend ? `<span class="chip warn">${m.plano==="Anual" ? "Anuidade pendente" : pend + (pend===1?" mês":" meses")}</span>` : "";
       return `<tr>
-        <td class="name"><button type="button" data-edit="${esc(m.id)}">${esc(m.nome.trim())}</button>${sitChip}<small>${esc(m.plano)} · ${m.presentes} ${m.presentes===1?"presente":"presentes"}${m.fim ? ` · até ${fmtData(m.fim)}` : ""}</small></td>
+        <td class="name"><button type="button" data-edit="${esc(m.id)}">${esc(m.nome.trim())}</button>${sitChip}<small>${esc(m.plano)} · ${m.presentes} ${m.presentes===1?"presente":"presentes"}${fimEfetivo(m) ? ` · até ${fmtData(fimEfetivo(m))}` : ""}</small></td>
         <td><span class="contact">${esc(m.contato)}${wa ? `<a class="wa" href="${wa}" target="_blank" rel="noopener" title="Enviar mensagem pelo WhatsApp" aria-label="WhatsApp de ${esc(m.nome)}">${WA_ICON}</a>` : ""}</span></td>
         <td class="r num">${m.plano==="Anual" ? brl.format(valorAnual(m)) + "<small style='color:var(--muted)'>/ano</small>" : brl.format(m.valor)}</td>
         ${cells}
@@ -741,7 +761,7 @@ dialog form{display:grid;gap:16px;padding:22px}
   // ---------- Assinaturas acabando ----------
   function linkRenovacao(m){
     const t = telefone(m.contato); if (!t.wa) return "";
-    const d = diasParaFim(m), quando = d < 0 ? `terminou em ${fmtData(m.fim)}` : d === 0 ? "termina hoje" : `termina em ${fmtData(m.fim)}`;
+    const d = diasParaFim(m), fim = fmtData(fimEfetivo(m)), quando = d < 0 ? `terminou em ${fim}` : d === 0 ? "termina hoje" : `termina em ${fim}`;
     const msg = `Olá, ${m.nome.trim().split(" ")[0]}! Aqui é do Instituto Fada Madrinha. Sua assinatura de madrinha ${quando}. Podemos contar com você por mais um ano? Muito obrigada por todo o carinho!`;
     return `https://wa.me/${t.wa}?text=${encodeURIComponent(msg)}`;
   }
@@ -759,7 +779,7 @@ dialog form{display:grid;gap:16px;padding:22px}
       return `<li class="${d < 0 ? "venc" : ""}">
         ${chip}
         <span class="who"><button type="button" data-edit="${esc(m.id)}">${esc(m.nome.trim())}</button><small>${esc(m.plano)} · ${brl.format(m.valor)}${m.plano === "Anual" ? "/ano" : "/mês"} · ${esc(m.contato)}</small></span>
-        <span class="fim num">Fim: ${fmtData(m.fim)}</span>
+        <span class="fim num">Fim: ${fmtData(fimEfetivo(m))}</span>
         <span class="acts">
           ${wa ? `<a class="btn" href="${wa}" target="_blank" rel="noopener"><span class="wa" style="width:18px;height:18px">${WA_ICON}</span>Lembrar</a>` : ""}
           <button class="btn" type="button" data-renovar="${esc(m.id)}"${dis}>Renovar por 12 meses</button>
@@ -767,7 +787,7 @@ dialog form{display:grid;gap:16px;padding:22px}
         </span>
       </li>`;
     }).join("") : `<li style="grid-template-columns:auto 1fr"><span class="chip good">✓ Tudo certo</span><span class="who">Nenhuma assinatura termina nos próximos ${AVISO_DIAS} dias.</span></li>`;
-    const semData = at.filter(m => !parseData(m.fim)).length;
+    const semData = at.filter(m => !parseData(fimEfetivo(m))).length;
     const breve = at.filter(m => { const d = diasParaFim(m); return d !== null && d > AVISO_DIAS && d <= 60; }).length;
     $("ren-foot").innerHTML = [
       breve ? `<span>${breve} ${breve === 1 ? "assinatura termina" : "assinaturas terminam"} entre 16 e 60 dias.</span>` : "",
@@ -784,17 +804,19 @@ dialog form{display:grid;gap:16px;padding:22px}
     const ok = state.podeEditar && state.fonte === "db";
     const dis = ok ? "" : " disabled";
     document.querySelectorAll(".seg button").forEach(b => { b.setAttribute("aria-pressed", String(b.dataset.cob === state.cobertura)); b.disabled = !ok; });
-    $("an-pago-h").textContent = `Pagou em ${state.ano}`;
     const anuais = state.madrinhas.filter(m => m.plano === "Anual");
-    const n = mesesPassados();
     $("an-body").innerHTML = anuais.length ? anuais.map(m => {
-      const pago = mesAnuidade(m), venc = vencimento(m), pend = pendencias(m);
+      const dataPag = dataPagamento(pagosDe(m), state.ano) || dataPagamento(state.pagAnt[m.id] || {}, state.ano - 1);
+      const renov = renovacaoAnual(m), dias = diasParaFim(m);
       let chip;
       if (m.situacao !== "Ativa") chip = `<span class="chip neutral">${esc(m.situacao)}</span>`;
-      else if (pago) chip = `<span class="chip good">✓ Em dia</span>`;
-      else if (pend) chip = `<span class="chip warn">! ${venc ? "Venceu em " + MESES_LONGOS[venc-1] : "Pagamento pendente"}</span>`;
-      else if (venc) chip = `<span class="chip neutral">Vence em ${MESES_LONGOS[venc-1]}</span>`;
-      else chip = `<span class="chip neutral">Sem mês definido</span>`;
+      else if (!dataPag) chip = `<span class="chip warn">! Sem pagamento registrado</span>`;
+      else if (dias < 0) chip = `<span class="chip bad">! Vencida há ${-dias} ${dias === -1 ? "dia" : "dias"}</span>`;
+      else if (dias <= AVISO_DIAS) chip = `<span class="chip warn">Renova em ${dias} ${dias === 1 ? "dia" : "dias"}</span>`;
+      else chip = `<span class="chip good">✓ Em dia</span>`;
+      const renovTxt = renov
+        ? `${renov.toLocaleDateString("pt-BR")}<small style="display:block;color:var(--muted);font-size:12px">${dias + 1 > 0 ? `em ${dias + 1} ${dias === 0 ? "dia" : "dias"}` : "vencida"}</small>`
+        : `<span style="color:var(--muted)">—</span>`;
       const un = m.unidadeValor || "";
       return `<tr>
         <td class="name"><button type="button" data-edit="${esc(m.id)}">${esc(m.nome.trim())}</button><small>${m.presentes} ${m.presentes===1?"presente":"presentes"}</small></td>
@@ -805,12 +827,11 @@ dialog form{display:grid;gap:16px;padding:22px}
             <option value="mes"${un==="mes"?" selected":""}>por mês</option>
           </select></td>
         <td class="num">${brl.format(valorAnual(m))}</td>
-        <td><select data-an="renovacao" data-id="${esc(m.id)}" aria-label="Mês de renovação de ${esc(m.nome)}"${dis}>${opcoesMes(Number(m.mesRenovacao)||0, "Não definido")}</select></td>
-        <td><select data-an="pago" data-id="${esc(m.id)}" aria-label="Mês em que ${esc(m.nome)} pagou em ${state.ano}"${dis}>${opcoesMes(pago, "Não pagou")}</select></td>
-        <td class="num">${cobertaAte(m)}</td>
+        <td><input type="date" class="an-date" data-an="data" data-id="${esc(m.id)}" value="${dataPag}" max="${isoData(hoje)}" aria-label="Data do pagamento de ${esc(m.nome)}"${dis}></td>
+        <td class="num">${renovTxt}</td>
         <td>${chip}</td>
       </tr>`;
-    }).join("") : `<tr><td colspan="7" class="empty">Nenhuma madrinha no plano anual.</td></tr>`;
+    }).join("") : `<tr><td colspan="6" class="empty">Nenhuma madrinha no plano anual.</td></tr>`;
   }
 
   function render(){ renderKpis(); renderRenovacoes(); renderChart(); renderComp(); renderReg(); renderAlerts(); renderAnuidades(); renderTabela(); renderStatus(); }
@@ -846,17 +867,37 @@ dialog form{display:grid;gap:16px;padding:22px}
 
   // Marca (ou remove) o pagamento de um mês. Na anuidade, só existe um mês pago por ano.
   function registrarPagamento(m, mes, marcando){
+    if (m.plano === "Anual"){
+      const agora = state.ano === hoje.getFullYear() && Number(mes) === hoje.getMonth() + 1;
+      return registrarAnuidade(m, marcando ? (agora ? isoData(hoje) : `${state.ano}-${String(mes).padStart(2,"0")}-01`) : "");
+    }
     const ano = state.ano, atual = {...pagosDe(m)};
-    if (marcando){
-      if (m.plano === "Anual") for (const k in atual) delete atual[k];
-      atual[mes] = {valor: m.plano === "Anual" ? valorAnual(m) : m.valor, em: new Date().toISOString().slice(0,10)};
-    } else delete atual[mes];
+    if (marcando) atual[mes] = {valor: m.valor, em: isoData(hoje)};
+    else delete atual[mes];
     state.pagamentos[m.id] = atual;
-    // Primeira anuidade registrada sem mês de renovação: o mês pago passa a ser a renovação.
-    if (marcando && m.plano === "Anual" && !Number(m.mesRenovacao) && state.fonte === "db") salvarMadrinha(m, {mesRenovacao: Number(mes)});
     render();
     return gravar(`pagamentos/${ano}-${m.id}`, ref => ref.set({madrinha: m.id, ano, meses: atual}))
       .then(() => toast(marcando ? `${m.nome.trim()}: ${MESES_LONGOS[mes-1]} marcado como pago.` : `${m.nome.trim()}: pagamento de ${state.ano} removido.`))
+      .catch(erroGravacao);
+  }
+  // Registra a anuidade pela data exata do pagamento (ou remove a deste ano, com data vazia).
+  // A data também vira o início da assinatura, e o fim acompanha a regra de cobertura.
+  function registrarAnuidade(m, iso){
+    const d = parseData(iso);
+    const ano = d ? d.getFullYear() : state.ano;
+    const meses = d ? {[d.getMonth() + 1]: {valor: valorAnual(m), em: iso}} : {};
+    const antes = ano === state.ano ? pagosDe(m) : (state.pagAnt[m.id] || {});
+    if (ano === state.ano) state.pagamentos[m.id] = meses;
+    else if (ano === state.ano - 1) state.pagAnt[m.id] = meses;
+    const nome = m.nome.trim();
+    if (d){
+      salvarMadrinha(m, {inicio: iso, fim: state.cobertura === "calendario" ? `${ano}-12-31` : fimPadrao(iso), mesRenovacao: d.getMonth() + 1});
+    } else {
+      const antiga = dataPagamento(antes, ano);
+      if (antiga && m.inicio === antiga) salvarMadrinha(m, {inicio: "", fim: ""}); else render();
+    }
+    return gravar(`pagamentos/${ano}-${m.id}`, ref => ref.set({madrinha: m.id, ano, meses}))
+      .then(() => toast(d ? `${nome}: anuidade paga em ${fmtData(iso)}.` : `${nome}: pagamento de ${ano} removido.`))
       .catch(erroGravacao);
   }
   function salvarMadrinha(m, campos, msg){
@@ -868,17 +909,15 @@ dialog form{display:grid;gap:16px;padding:22px}
   }
 
   document.addEventListener("change", e => {
-    const s = e.target.closest("select[data-an]");
+    const s = e.target.closest("[data-an]");
     if (!s || !state.podeEditar || state.fonte !== "db") return;
     const m = state.madrinhas.find(x => x.id === s.dataset.id); if (!m) return;
     const v = s.value, nome = m.nome.trim();
     if (s.dataset.an === "unidade")
       salvarMadrinha(m, {unidadeValor: v}, v ? `${nome}: valor registrado ${v === "mes" ? "por mês" : "por ano"}.` : `${nome}: valor voltou para não confirmado.`);
-    else if (s.dataset.an === "renovacao")
-      salvarMadrinha(m, {mesRenovacao: Number(v)}, Number(v) ? `${nome}: renova em ${MESES_LONGOS[v-1]}.` : `${nome}: mês de renovação removido.`);
-    else if (s.dataset.an === "pago"){
-      if (Number(v)) registrarPagamento(m, v, true);
-      else if (mesAnuidade(m)) registrarPagamento(m, mesAnuidade(m), false);
+    else if (s.dataset.an === "data"){
+      if (v && !parseData(v)) return;
+      if (v || mesAnuidade(m)) registrarAnuidade(m, v);
     }
   });
 
@@ -900,8 +939,10 @@ dialog form{display:grid;gap:16px;padding:22px}
     const rn = e.target.closest("button[data-renovar]");
     if (rn && !rn.disabled){
       const m = state.madrinhas.find(x => x.id === rn.dataset.renovar); if (!m) return;
-      const f = parseData(m.fim) || new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() - 1);
+      const f = parseData(fimEfetivo(m)) || new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() - 1);
       const inicio = isoData(new Date(f.getFullYear(), f.getMonth(), f.getDate() + 1)), fim = fimPadrao(inicio);
+      // Na anuidade, renovar é registrar o novo pagamento; ele define o novo período.
+      if (m.plano === "Anual"){ registrarAnuidade(m, inicio <= isoData(hoje) ? inicio : isoData(hoje)); return; }
       salvarMadrinha(m, {inicio, fim}, `${m.nome.trim()}: assinatura renovada até ${fmtData(fim)}.`);
       return;
     }
