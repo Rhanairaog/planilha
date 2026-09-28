@@ -448,7 +448,7 @@ dialog form{display:grid;gap:16px;padding:22px}
     <section class="panel" aria-labelledby="h-ren">
       <div class="panel-h">
         <h2 id="h-ren">Assinaturas acabando</h2>
-        <p>Terminam nos próximos 15 dias ou já venceram</p>
+        <p>Anuais a 15 dias do fim · mensais com o mês vencido sem pagamento</p>
       </div>
       <ul class="ren" id="ren"></ul>
       <div class="ren-foot" id="ren-foot"></div>
@@ -492,7 +492,7 @@ dialog form{display:grid;gap:16px;padding:22px}
           <select id="gs"><option value="Ativa">Ativas</option><option value="">Todas</option><option>Pausada</option><option>Encerrada</option></select></div>
         <div class="field"><label for="go">Ordenar</label>
           <select id="go"><option value="ordem">Planilha</option><option value="nome">Nome</option><option value="valor">Maior valor</option><option value="pend">Mais pendências</option><option value="fim">Fim mais próximo</option></select></div>
-        <label class="toggle"><input id="gf" type="checkbox">Sem data de fim</label>
+        <label class="toggle"><input id="gf" type="checkbox">Sem data de início</label>
         <span class="count" id="g-count"></span>
       </div>
       <div class="fchips" id="chips-mad"></div>
@@ -521,8 +521,8 @@ dialog form{display:grid;gap:16px;padding:22px}
       <div class="f"><label for="f-sit">Situação</label><select id="f-sit"><option>Ativa</option><option>Pausada</option><option>Encerrada</option></select></div>
       <div class="f full"><label for="f-cont">Contato</label><input id="f-cont" maxlength="60" placeholder="(16) 99999-9999"></div>
       <div class="f"><label for="f-ini">Início da assinatura</label><input id="f-ini" type="date"></div>
-      <div class="f"><label for="f-fim">Fim da assinatura</label><input id="f-fim" type="date"></div>
-      <p class="dlg-note full">O fim é preenchido com 12 meses após o início. Você pode alterar.</p>
+      <div class="f" id="f-fim-box"><label for="f-fim">Fim da assinatura</label><input id="f-fim" type="date"></div>
+      <p class="dlg-note full" id="f-datas-note"></p>
     </div>
     <p class="dlg-note" id="dlg-note"></p>
     <div class="dlg-actions">
@@ -708,14 +708,31 @@ dialog form{display:grid;gap:16px;padding:22px}
     const d = parseData(ini); if (!d) return null;
     return state.cobertura === "calendario" ? new Date(d.getFullYear() + 1, 0, 1) : new Date(d.getFullYear() + 1, d.getMonth(), d.getDate());
   }
-  // Fim da assinatura: na anuidade vem do pagamento; nos demais casos, do cadastro.
+  const fimDoMes = (ano, mes) => isoData(new Date(ano, mes, 0));
+  const ultimoMes = p => Math.max(0, ...Object.keys(p || {}).map(Number));
+  // Fim da assinatura.
+  // Anual: um período a partir do pagamento. Mensal: renova todo mês, então vale até o fim do
+  // último mês pago (ou do mês de início, enquanto nada foi pago).
   function fimEfetivo(m){
     if (m.plano === "Anual"){
       const r = renovacaoAnual(m);
       if (r) return isoData(new Date(r.getFullYear(), r.getMonth(), r.getDate() - 1));
+      return m.fim || "";
     }
-    return m.fim || "";
+    const ult = ultimoMes(pagosDe(m));
+    if (ult) return fimDoMes(state.ano, ult);
+    const ultAnt = ultimoMes(state.pagAnt[m.id]);
+    if (ultAnt) return fimDoMes(state.ano - 1, ultAnt);
+    const ini = parseData(m.inicio);
+    return ini ? fimDoMes(ini.getFullYear(), ini.getMonth() + 1) : "";
   }
+  // Entra no aviso de "assinaturas acabando": anual a 15 dias do fim; mensal só depois que o mês pago acabou.
+  function acabando(m){
+    const d = diasParaFim(m);
+    return d !== null && (m.plano === "Anual" ? d <= AVISO_DIAS : d < 0);
+  }
+  // Falta uma data importante: na mensal, o início (sem ele cobra desde janeiro); na anual, o pagamento.
+  const semData = m => m.plano === "Mensal" ? !parseData(m.inicio) : !parseData(fimEfetivo(m));
   function diasParaFim(m){
     const f = parseData(fimEfetivo(m)); if (!f) return null;
     return Math.round((f - new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate())) / DIA);
@@ -732,7 +749,7 @@ dialog form{display:grid;gap:16px;padding:22px}
     if (m.plano === "Anual" && !dataPagamento(pagosDe(m), state.ano) && !dataPagamento(state.pagAnt[m.id] || {}, state.ano - 1)) return {c:"warn", t:"Sem pagamento registrado"};
     if (dias !== null && dias < 0) return {c:"bad", t:`Venceu há ${plural(-dias,"dia","dias")}`};
     if (pend) return {c:"warn", t: m.plano === "Anual" ? "Anuidade pendente" : `${plural(pend,"mês","meses")} em aberto`};
-    if (dias !== null && dias <= AVISO_DIAS) return {c:"warn", t:`Termina em ${plural(dias,"dia","dias")}`};
+    if (m.plano === "Anual" && dias !== null && dias <= AVISO_DIAS) return {c:"warn", t:`Termina em ${plural(dias,"dia","dias")}`};
     return {c:"good", t:"✓ Em dia"};
   }
 
@@ -798,10 +815,10 @@ dialog form{display:grid;gap:16px;padding:22px}
     const at = ativas(), n = mesesPassados();
     const abertas = n ? at.filter(m => estadoCelula(m, n) === "open") : [];
     const valorAberto = abertas.reduce((s,m)=>s + (m.plano === "Anual" ? valorAnual(m) : m.valor), 0);
-    const acabando = at.filter(m => { const d = diasParaFim(m); return d !== null && d <= AVISO_DIAS; });
-    const vencidas = acabando.filter(m => diasParaFim(m) < 0).length;
+    const acab = at.filter(acabando);
+    const vencidas = acab.filter(m => diasParaFim(m) < 0).length;
     const semPagAnual = at.filter(m => m.plano === "Anual" && resumo(m).t === "Sem pagamento registrado");
-    const semFim = at.filter(m => !parseData(fimEfetivo(m)));
+    const semFim = at.filter(semData);
     const cards = [
       {id:"cobrar", tone: abertas.length ? "warn" : "good", titulo: n ? `Cobrar ${MESES_LONGOS[n-1]}` : "Cobranças do mês",
        n: abertas.length, sub: abertas.length ? `${brl.format(valorAberto)} em aberto` : "Todas em dia neste mês", go:"Ver no controle"},
@@ -809,8 +826,8 @@ dialog form{display:grid;gap:16px;padding:22px}
        n: acabando.length, sub: vencidas ? `${plural(vencidas,"já venceu","já venceram")}` : acabando.length ? "Hora de chamar para renovar" : "Nenhuma perto de acabar", go:"Ver renovações"},
       {id:"anuidades", tone: semPagAnual.length ? "warn" : "good", titulo:"Anuidades sem pagamento",
        n: semPagAnual.length, sub: semPagAnual.length ? "Informe a data do pagamento" : "Todas registradas", go:"Registrar"},
-      {id:"semfim", tone: semFim.length ? "warn" : "good", titulo:"Sem data de fim",
-       n: semFim.length, sub: semFim.length ? "Sem aviso de término" : "Todas com data", go:"Completar cadastro"}
+      {id:"semfim", tone: semFim.length ? "warn" : "good", titulo:"Sem data de início",
+       n: semFim.length, sub: semFim.length ? "Mensais cobradas desde janeiro" : "Todas com data", go:"Completar cadastro"}
     ];
     $("todo").innerHTML = cards.map(c => `
       <button class="todo-card" type="button" data-todo="${c.id}" data-tone="${c.tone}">
@@ -984,14 +1001,24 @@ dialog form{display:grid;gap:16px;padding:22px}
   function linkRenovacao(m){
     const t = telefone(m.contato); if (!t.wa) return "";
     const d = diasParaFim(m), fim = fmtData(fimEfetivo(m)), quando = d < 0 ? `terminou em ${fim}` : d === 0 ? "termina hoje" : `termina em ${fim}`;
-    const msg = `Olá, ${m.nome.trim().split(" ")[0]}! Aqui é do Instituto Fada Madrinha. Sua assinatura de madrinha ${quando}. Podemos contar com você por mais um ano? Muito obrigada por todo o carinho!`;
+    const primeiro = m.nome.trim().split(" ")[0];
+    const msg = m.plano === "Mensal"
+      ? `Olá, ${primeiro}! Aqui é do Instituto Fada Madrinha. Ainda não registramos a sua contribuição de madrinha de ${MESES_LONGOS[proximoMes(m).mes - 1]}. Se já fez, pode desconsiderar. Muito obrigada por todo o carinho!`
+      : `Olá, ${primeiro}! Aqui é do Instituto Fada Madrinha. Sua assinatura de madrinha ${quando}. Podemos contar com você por mais um ano? Muito obrigada por todo o carinho!`;
     return `https://wa.me/${t.wa}?text=${encodeURIComponent(msg)}`;
   }
+  // Próximo mês a pagar de uma mensal: o seguinte ao fim atual.
+  function proximoMes(m){
+    const f = parseData(fimEfetivo(m)) || new Date(hoje.getFullYear(), hoje.getMonth(), 0);
+    const d = new Date(f.getFullYear(), f.getMonth() + 1, 1);
+    return {ano: d.getFullYear(), mes: d.getMonth() + 1};
+  }
+  const rotuloRenovar = m => m.plano === "Anual" ? "Renovar por 12 meses" : `Marcar ${MESES_LONGOS[proximoMes(m).mes - 1]} como pago`;
   let encerrarPendente = null, encerrarT;
   function renderRenovacoes(){
     const ok = podeGravar(), dis = ok ? "" : " disabled";
     const at = ativas();
-    const lista = at.map(m => ({m, d: diasParaFim(m)})).filter(x => x.d !== null && x.d <= AVISO_DIAS).sort((a,b) => a.d - b.d);
+    const lista = at.filter(acabando).map(m => ({m, d: diasParaFim(m)})).sort((a,b) => a.d - b.d);
     $("ren").innerHTML = lista.length ? lista.map(({m, d}) => {
       const chip = d < 0 ? `<span class="chip bad">! Venceu há ${plural(-d,"dia","dias")}</span>`
         : d === 0 ? `<span class="chip warn">! Termina hoje</span>`
@@ -1003,16 +1030,16 @@ dialog form{display:grid;gap:16px;padding:22px}
         <span class="fim num">Fim: ${fmtData(fimEfetivo(m))}</span>
         <span class="acts">
           ${wa ? `<a class="btn sm" href="${wa}" target="_blank" rel="noopener"><span class="wa" style="width:18px;height:18px">${WA_ICON}</span>Lembrar</a>` : ""}
-          <button class="btn sm" type="button" data-renovar="${esc(m.id)}"${dis}>Renovar por 12 meses</button>
+          <button class="btn sm" type="button" data-renovar="${esc(m.id)}"${dis}>${esc(rotuloRenovar(m))}</button>
           <button class="btn sm" type="button" data-encerrar="${esc(m.id)}"${dis}${conf ? ' style="color:var(--bad);border-color:var(--bad)"' : ""}>${conf ? "Confirmar encerramento" : "Encerrar"}</button>
         </span>
       </li>`;
-    }).join("") : `<li style="grid-template-columns:auto 1fr"><span class="chip good">✓ Tudo certo</span><span class="who">Nenhuma assinatura termina nos próximos ${AVISO_DIAS} dias.</span></li>`;
-    const semData = at.filter(m => !parseData(fimEfetivo(m))).length;
-    const breve = at.filter(m => { const d = diasParaFim(m); return d !== null && d > AVISO_DIAS && d <= 60; }).length;
+    }).join("") : `<li style="grid-template-columns:auto 1fr"><span class="chip good">✓ Tudo certo</span><span class="who">Nenhuma anuidade termina nos próximos ${AVISO_DIAS} dias e nenhuma mensal está com o mês vencido.</span></li>`;
+    const nSemData = at.filter(semData).length;
+    const breve = at.filter(m => { const d = diasParaFim(m); return m.plano === "Anual" && d !== null && d > AVISO_DIAS && d <= 60; }).length;
     $("ren-foot").innerHTML = [
-      breve ? `<span>${plural(breve,"assinatura termina","assinaturas terminam")} entre 16 e 60 dias.</span>` : "",
-      semData ? `<span>${plural(semData,"madrinha ativa ainda está","madrinhas ativas ainda estão")} sem data de fim. Complete pela aba Madrinhas.</span>` : ""
+      breve ? `<span>${plural(breve,"anuidade termina","anuidades terminam")} entre 16 e 60 dias.</span>` : "",
+      nSemData ? `<span>${plural(nSemData,"madrinha ativa ainda está","madrinhas ativas ainda estão")} sem data de início. Complete pela aba Madrinhas.</span>` : ""
     ].join("");
   }
   function renderAnuidades(){
@@ -1058,7 +1085,7 @@ dialog form{display:grid;gap:16px;padding:22px}
     const lista = [];
     if (g.grupo) lista.push({k:"g.grupo", t:nomeGrupo(g.grupo)});
     if (g.regiao) lista.push({k:"g.regiao", t:g.regiao});
-    if (g.semFim) lista.push({k:"g.semFim", t:"Sem data de fim"});
+    if (g.semFim) lista.push({k:"g.semFim", t:"Sem data de início"});
     if (g.situacao !== "Ativa") lista.push({k:"g.situacao", t: g.situacao ? `Situação: ${g.situacao}` : "Todas as situações"});
     if (g.q) lista.push({k:"g.q", t:`Busca: ${g.q}`});
     chips($("chips-mad"), lista);
@@ -1067,7 +1094,7 @@ dialog form{display:grid;gap:16px;padding:22px}
       (!g.situacao || m.situacao === g.situacao) &&
       (!g.grupo || grupoDe(m) === g.grupo) &&
       (!g.regiao || telefone(m.contato).regiao === g.regiao) &&
-      (!g.semFim || !parseData(fimEfetivo(m))) &&
+      (!g.semFim || semData(m)) &&
       buscaBate(m, g.q));
     const ord = {
       nome: (a,b) => a.nome.localeCompare(b.nome,"pt-BR"),
@@ -1087,7 +1114,7 @@ dialog form{display:grid;gap:16px;padding:22px}
             <span><b>${esc(m.nome.trim())}</b><small>${esc(m.plano)} · ${m.plano === "Anual" ? brl.format(valorAnual(m)) + "/ano" : brl.format(m.valor) + "/mês"}</small></span></span>
         </span>
         <span class="strip" aria-label="Pagamentos de ${state.ano}">${strip}</span>
-        <span class="card-f"><span class="chip ${r.c}">${esc(r.t)}</span><span>${fim ? "até " + fmtData(fim) : "sem data de fim"}</span></span>
+        <span class="card-f"><span class="chip ${r.c}">${esc(r.t)}</span><span>${fim ? (m.plano === "Mensal" ? "pago até " : "até ") + fmtData(fim) : "sem data de início"}</span></span>
       </button>`;
     }).join("") : `<p class="empty" style="grid-column:1/-1">Nenhuma madrinha encontrada com esses filtros.</p>`;
   }
@@ -1126,7 +1153,7 @@ dialog form{display:grid;gap:16px;padding:22px}
         <div><b class="num">${m.plano === "Anual" ? brl.format(valorAnual(m)) : brl.format(m.valor)}</b><span>${m.plano === "Anual" ? "por ano" : "por mês"}</span></div>
         <div><b class="num">${brl.format(totalPago(m))}</b><span>pago em ${state.ano}</span></div>
         <div><b class="num">${m.plano === "Anual" ? (mesAnuidade(m) ? "Paga" : "Pendente") : `${pagos} de ${mesesDevidos(m, n)}`}</b><span>${m.plano === "Anual" ? `anuidade de ${state.ano}` : `meses pagos até ${n ? MESES_LONGOS[n-1] : "agora"}`}</span></div>
-        <div><b class="num">${fim ? fmtData(fim) : "—"}</b><span>${fim ? (dias < 0 ? `venceu há ${plural(-dias,"dia","dias")}` : `fim da assinatura · ${plural(dias,"dia","dias")}`) : "sem data de fim"}</span></div>
+        <div><b class="num">${fim ? fmtData(fim) : "—"}</b><span>${fim ? (dias < 0 ? `venceu há ${plural(-dias,"dia","dias")}` : `${m.plano === "Mensal" ? "coberta até o fim do mês" : "fim da assinatura"} · ${plural(dias,"dia","dias")}`) : "sem data"}</span></div>
       </div>
       <div style="display:grid;gap:8px">
         <span class="sec-t">Pagamentos de ${state.ano} ${ok ? "· clique para marcar" : ""}</span>
@@ -1138,7 +1165,7 @@ dialog form{display:grid;gap:16px;padding:22px}
           <span class="num" style="font-size:16px;font-weight:600">${esc(m.contato || "—")}</span>
           <button class="btn sm" type="button" id="fi-copy">Copiar</button>
           ${wa ? `<a class="btn sm" href="${wa}" target="_blank" rel="noopener"><span class="wa" style="width:18px;height:18px">${WA_ICON}</span>${pendencias(m) ? "Lembrar pagamento" : "WhatsApp"}</a>` : ""}
-          ${waRen && dias !== null && dias <= AVISO_DIAS ? `<a class="btn sm" href="${waRen}" target="_blank" rel="noopener">Convidar para renovar</a>` : ""}
+          ${waRen && acabando(m) ? `<a class="btn sm" href="${waRen}" target="_blank" rel="noopener">Convidar para renovar</a>` : ""}
         </div>
       </div>
       <div style="display:grid;gap:8px">
@@ -1149,7 +1176,7 @@ dialog form{display:grid;gap:16px;padding:22px}
       </div>
       <div class="ficha-acts">
         <button class="btn primary" type="button" data-editar="${esc(m.id)}"${ok ? "" : " disabled"}>Editar cadastro</button>
-        ${dias !== null && dias <= AVISO_DIAS && ok ? `<button class="btn" type="button" data-renovar="${esc(m.id)}">Renovar por 12 meses</button>` : ""}
+        ${acabando(m) && ok ? `<button class="btn" type="button" data-renovar="${esc(m.id)}">${esc(rotuloRenovar(m))}</button>` : ""}
       </div>`;
     $("fi-close").onclick = () => $("ficha").close();
     $("fi-copy").onclick = async () => {
@@ -1171,7 +1198,7 @@ dialog form{display:grid;gap:16px;padding:22px}
     });
     const n = mesesPassados();
     const abertas = n ? ativas().filter(m => estadoCelula(m, n) === "open").length : 0;
-    const ren = ativas().filter(m => { const d = diasParaFim(m); return d !== null && d <= AVISO_DIAS; }).length;
+    const ren = ativas().filter(acabando).length;
     $("b-pag").hidden = !abertas; $("b-pag").textContent = abertas; $("b-pag").title = `${abertas} em aberto no mês`;
     $("b-ren").hidden = !ren; $("b-ren").textContent = ren;
     $("b-mad").textContent = ativas().length;
@@ -1344,10 +1371,15 @@ dialog form{display:grid;gap:16px;padding:22px}
     const rn = e.target.closest("button[data-renovar]");
     if (rn && !rn.disabled){
       const m = state.madrinhas.find(x => x.id === rn.dataset.renovar); if (!m) return;
+      if (m.plano === "Mensal"){
+        const {ano, mes} = proximoMes(m);
+        if (ano !== state.ano){ toast(`Mude o ano para ${ano} no topo para marcar ${MESES_LONGOS[mes-1]}.`); return; }
+        registrarPagamento(m, String(mes), true);
+        return;
+      }
       const f = parseData(fimEfetivo(m)) || new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() - 1);
-      const inicio = isoData(new Date(f.getFullYear(), f.getMonth(), f.getDate() + 1)), fim = fimPadrao(inicio);
-      if (m.plano === "Anual"){ registrarAnuidade(m, inicio <= isoData(hoje) ? inicio : isoData(hoje)); return; }
-      salvarMadrinha(m, {inicio, fim}, `${m.nome.trim()}: assinatura renovada até ${fmtData(fim)}.`);
+      const inicio = isoData(new Date(f.getFullYear(), f.getMonth(), f.getDate() + 1));
+      registrarAnuidade(m, inicio <= isoData(hoje) ? inicio : isoData(hoje));
       return;
     }
     const en = e.target.closest("button[data-encerrar]");
@@ -1378,7 +1410,7 @@ dialog form{display:grid;gap:16px;padding:22px}
     $("f-cont").value = m ? m.contato : "";
     const ini = m ? (m.inicio || "") : isoData(hoje);
     $("f-ini").value = ini;
-    $("f-fim").value = m ? (m.fim || "") : fimPadrao(ini);
+    $("f-fim").value = m ? (m.fim || "") : ($("f-plano").value === "Anual" ? fimPadrao(ini) : "");
     $("f-fim").setCustomValidity("");
     const ok = podeGravar();
     ["f-nome","f-plano","f-valor","f-pres","f-sit","f-cont","f-ini","f-fim"].forEach(id => $(id).disabled = !ok);
@@ -1387,8 +1419,19 @@ dialog form{display:grid;gap:16px;padding:22px}
     delete $("dlg-del").dataset.confirm;
     $("dlg-del").textContent = "Excluir madrinha";
     $("dlg-note").textContent = ok ? "" : "Este painel está em modo leitura.";
+    ajustarDatas();
     $("dlg").showModal();
   }
+  // Mensal renova todo mês: não tem fim fixo. Anual: fim sugerido em 12 meses.
+  function ajustarDatas(){
+    const mensal = $("f-plano").value === "Mensal";
+    $("f-fim-box").hidden = mensal;
+    $("f-datas-note").textContent = mensal
+      ? "A mensal renova todo mês: fica ativa até o fim do último mês pago. Os meses antes do início não são cobrados."
+      : "O fim é preenchido com 12 meses após o início. Ao registrar o pagamento em Anuidades, ele é recalculado.";
+    if (!mensal && !$("f-fim").value && $("f-ini").value) $("f-fim").value = fimPadrao($("f-ini").value);
+  }
+  $("f-plano").addEventListener("change", ajustarDatas);
   $("add").addEventListener("click", () => abrirDialogo(null));
   $("dlg-cancel").addEventListener("click", () => $("dlg").close());
   let iniAnterior = "";
@@ -1430,7 +1473,7 @@ dialog form{display:grid;gap:16px;padding:22px}
     const valor = Math.max(0, Math.round(Number($("f-valor").value) || 0));
     const presentes = Math.max(0, Math.round(Number($("f-pres").value) || 0));
     if (!nome){ $("f-nome").focus(); return; }
-    const inicio = $("f-ini").value, fim = $("f-fim").value;
+    const inicio = $("f-ini").value, fim = $("f-plano").value === "Mensal" ? "" : $("f-fim").value;
     if (inicio && fim && fim < inicio){ $("f-fim").setCustomValidity("O fim precisa ser depois do início."); $("f-fim").reportValidity(); return; }
     let id = editando ? editando.id : slug(nome);
     if (!editando && state.madrinhas.some(m => m.id === id)) id += "-" + Math.random().toString(36).slice(2,6);
