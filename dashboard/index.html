@@ -12,6 +12,7 @@
   --good:#1E7447; --good-soft:#DCF0E3;
   --warn:#8A5700; --warn-soft:#FAEDD2;
   --bad:#AE2A1E; --bad-soft:#F9E1DE;
+  --anual:#8A3A86; --anual-soft:#F7EAF6; --anual-line:#E3C4E1;
   --shadow:0 1px 2px rgba(23,27,51,.06),0 4px 16px rgba(23,27,51,.05);
   --shadow-lg:0 10px 40px rgba(23,27,51,.18);
   --display:"Young Serif",Georgia,"Times New Roman",serif;
@@ -28,6 +29,7 @@
     --good:#6BD6A0; --good-soft:#173628;
     --warn:#F1B75A; --warn-soft:#3A2D13;
     --bad:#F28B7F; --bad-soft:#3D1D1A;
+    --anual:#E6A3E2; --anual-soft:#2C1C31; --anual-line:#553A59;
     --shadow:0 1px 2px rgba(0,0,0,.3);
     --shadow-lg:0 10px 40px rgba(0,0,0,.5);
   }
@@ -42,6 +44,7 @@
   --good:#6BD6A0; --good-soft:#173628;
   --warn:#F1B75A; --warn-soft:#3A2D13;
   --bad:#F28B7F; --bad-soft:#3D1D1A;
+  --anual:#E6A3E2; --anual-soft:#2C1C31; --anual-line:#553A59;
   --shadow:0 1px 2px rgba(0,0,0,.3);
   --shadow-lg:0 10px 40px rgba(0,0,0,.5);
 }
@@ -263,6 +266,21 @@ tfoot td.m{font-size:11px;color:var(--ink-2)}
 .card-f{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px 8px;font-size:12.5px;color:var(--muted)}
 .card-f > span:last-child{white-space:nowrap}
 
+/* Madrinhas anuais: cor própria em todo o painel */
+.tag-anual{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:1px 7px;border-radius:999px;background:var(--anual);color:var(--surface);vertical-align:1px}
+.tag-anual::before{content:"✦";font-size:9px}
+.card.anual{background:var(--anual-soft);border-color:var(--anual-line)}
+.card.anual:hover{border-color:var(--anual)}
+.anual .avatar,.avatar.anual{background:var(--anual);color:var(--surface)}
+.card.anual .strip i[data-s="future"],.card.anual .strip i[data-s="idle"]{background:var(--surface)}
+tr.anual td,tr.anual td.name{background:var(--anual-soft)}
+tbody tr.anual:hover td{background:color-mix(in srgb,var(--anual-soft) 70%,var(--anual-line))}
+tr.anual td.name{box-shadow:inset 3px 0 0 var(--anual)}
+.ren li.anual{background:var(--anual-soft)}
+.ren li.anual.venc{background:var(--bad-soft)}
+.bar-row[data-grupo="Anual"] .track b{background:var(--anual)}
+.sw.anual{background:var(--anual-soft);border:1.5px solid var(--anual)}
+
 /* Ficha lateral */
 dialog{border:1px solid var(--line);border-radius:16px;background:var(--surface);color:var(--ink);padding:0;width:min(480px,calc(100vw - 32px));box-shadow:var(--shadow-lg)}
 dialog::backdrop{background:rgba(14,17,32,.45)}
@@ -431,6 +449,7 @@ dialog form{display:grid;gap:16px;padding:22px}
         <span><i class="cell" data-s="covered">A</i>Coberto pela anuidade</span>
         <span><i class="cell" data-s="due">R</i>Renovação prevista</span>
         <span><i class="cell" data-s="pre">–</i>Antes do início</span>
+        <span><i class="sw anual"></i>Madrinha anual</span>
         <span><i class="cell" data-s="future"></i>Mês futuro</span>
       </div>
       <div class="table-wrap">
@@ -981,9 +1000,9 @@ dialog form{display:grid;gap:16px;padding:22px}
       }).join("");
       const sitChip = m.situacao !== "Ativa" ? ` <span class="chip neutral">${esc(m.situacao)}</span>` : "";
       const pendChip = pend ? `<span class="chip warn">${m.plano==="Anual" ? "Anuidade pendente" : plural(pend,"mês","meses")}</span>` : "";
-      const fim = fimEfetivo(m);
-      return `<tr>
-        <td class="name"><button type="button" data-ficha="${esc(m.id)}">${esc(m.nome.trim())}</button>${sitChip}<small>${esc(m.plano)} · ${plural(m.presentes,"presente","presentes")}${fim ? ` · até ${fmtData(fim)}` : ""}</small></td>
+      const fim = fimEfetivo(m), anual = m.plano === "Anual";
+      return `<tr${anual ? ' class="anual"' : ""}>
+        <td class="name"><button type="button" data-ficha="${esc(m.id)}">${esc(m.nome.trim())}</button>${anual ? ' <span class="tag-anual">Anual</span>' : ""}${sitChip}<small>${anual ? "" : esc(m.plano) + " · "}${plural(m.presentes,"presente","presentes")}${fim ? ` · até ${fmtData(fim)}` : ""}</small></td>
         <td><span class="contact">${esc(m.contato)}${wa ? `<a class="wa" href="${wa}" target="_blank" rel="noopener" title="Enviar mensagem pelo WhatsApp" aria-label="WhatsApp de ${esc(m.nome)}">${WA_ICON}</a>` : ""}</span></td>
         <td class="r num">${m.plano==="Anual" ? brl.format(valorAnual(m)) + "<small style='color:var(--muted)'>/ano</small>" : brl.format(m.valor)}</td>
         ${cells}
@@ -1024,9 +1043,9 @@ dialog form{display:grid;gap:16px;padding:22px}
         : d === 0 ? `<span class="chip warn">! Termina hoje</span>`
         : `<span class="chip warn">Faltam ${plural(d,"dia","dias")}</span>`;
       const wa = linkRenovacao(m), conf = encerrarPendente === m.id;
-      return `<li class="${d < 0 ? "venc" : ""}">
+      return `<li class="${d < 0 ? "venc" : ""}${m.plano === "Anual" ? " anual" : ""}">
         ${chip}
-        <span class="who"><button class="link-name" type="button" data-ficha="${esc(m.id)}">${esc(m.nome.trim())}</button><small>${esc(m.plano)} · ${brl.format(m.valor)}${m.plano === "Anual" ? "/ano" : "/mês"} · ${esc(m.contato)}</small></span>
+        <span class="who"><button class="link-name" type="button" data-ficha="${esc(m.id)}">${esc(m.nome.trim())}</button>${m.plano === "Anual" ? ' <span class="tag-anual">Anual</span>' : ""}<small>${m.plano === "Anual" ? "" : esc(m.plano) + " · "}${brl.format(m.valor)}${m.plano === "Anual" ? "/ano" : "/mês"} · ${esc(m.contato)}</small></span>
         <span class="fim num">Fim: ${fmtData(fimEfetivo(m))}</span>
         <span class="acts">
           ${wa ? `<a class="btn sm" href="${wa}" target="_blank" rel="noopener"><span class="wa" style="width:18px;height:18px">${WA_ICON}</span>Lembrar</a>` : ""}
@@ -1108,10 +1127,10 @@ dialog form{display:grid;gap:16px;padding:22px}
     $("cards").innerHTML = rows.length ? rows.map(m => {
       const r = resumo(m), fim = fimEfetivo(m);
       const strip = MESES.map((_,i) => { const s = estadoCelula(m, i+1); return `<i data-s="${s}" title="${cap(MESES_LONGOS[i])}: ${ROTULO[s]}"></i>`; }).join("");
-      return `<button class="card" type="button" data-ficha="${esc(m.id)}">
+      return `<button class="card${m.plano === "Anual" ? " anual" : ""}" type="button" data-ficha="${esc(m.id)}">
         <span class="card-h">
           <span class="card-top"><span class="avatar" aria-hidden="true">${esc(iniciais(m.nome))}</span>
-            <span><b>${esc(m.nome.trim())}</b><small>${esc(m.plano)} · ${m.plano === "Anual" ? brl.format(valorAnual(m)) + "/ano" : brl.format(m.valor) + "/mês"}</small></span></span>
+            <span><b>${esc(m.nome.trim())}</b><small>${m.plano === "Anual" ? '<span class="tag-anual">Anual</span>' : esc(m.plano)} · ${m.plano === "Anual" ? brl.format(valorAnual(m)) + "/ano" : brl.format(m.valor) + "/mês"}</small></span></span>
         </span>
         <span class="strip" aria-label="Pagamentos de ${state.ano}">${strip}</span>
         <span class="card-f"><span class="chip ${r.c}">${esc(r.t)}</span><span>${fim ? (m.plano === "Mensal" ? "pago até " : "até ") + fmtData(fim) : "sem data de início"}</span></span>
@@ -1142,10 +1161,10 @@ dialog form{display:grid;gap:16px;padding:22px}
     }).join("");
     $("ficha-body").innerHTML = `
       <div class="ficha-h">
-        <span class="avatar" aria-hidden="true">${esc(iniciais(m.nome))}</span>
+        <span class="avatar${m.plano === "Anual" ? " anual" : ""}" aria-hidden="true">${esc(iniciais(m.nome))}</span>
         <div style="display:grid;gap:4px">
           <h2 id="fi-nome">${esc(m.nome.trim())}</h2>
-          <span style="display:flex;flex-wrap:wrap;gap:6px;align-items:center"><span class="chip ${r.c}">${esc(r.t)}</span><span class="dlg-note">${esc(m.plano)} · ${plural(m.presentes,"presente","presentes")} · ${esc(telefone(m.contato).regiao)}</span></span>
+          <span style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">${m.plano === "Anual" ? '<span class="tag-anual">Anual</span>' : ""}<span class="chip ${r.c}">${esc(r.t)}</span><span class="dlg-note">${m.plano === "Anual" ? "" : esc(m.plano) + " · "}${plural(m.presentes,"presente","presentes")} · ${esc(telefone(m.contato).regiao)}</span></span>
         </div>
         <button class="close" type="button" id="fi-close" aria-label="Fechar ficha">×</button>
       </div>
