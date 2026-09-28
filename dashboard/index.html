@@ -334,6 +334,71 @@ dialog form{display:grid;gap:16px;padding:22px}
   .fgrid{grid-template-columns:1fr}
   .tab{padding:0 12px}
 }
+/* Ícones das abas e listas de celular (escondidos no computador) */
+.tab .ti{display:none;width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tab .sh{display:none}
+.plist{display:none}
+.pitem{display:grid;gap:10px;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+.pitem.anual{background:var(--anual-soft);border-color:var(--anual-line)}
+.pitem-h{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.pitem-h .link-name{font-size:15.5px}
+.pitem-h small{display:block;color:var(--muted);font-size:12.5px;margin-top:2px}
+.pitem-f{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;font-size:13px;color:var(--ink-2)}
+.months .cell.focus{box-shadow:0 0 0 2px var(--accent)}
+.an-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.an-row label{display:grid;gap:4px;font-size:12px;font-weight:600;color:var(--ink-2)}
+.an-row select,.an-row input{height:42px;border:1px solid var(--line-strong);border-radius:10px;background:var(--surface);padding:0 10px;width:100%;font-size:15px}
+
+@media (max-width:720px){
+  .wrap{gap:16px;padding-block:16px calc(92px + env(safe-area-inset-bottom,0px))}
+  h2{font-size:18px}
+  .top{align-items:stretch}
+  .top-actions{width:100%;display:grid;grid-template-columns:auto 1fr;gap:8px}
+  .top-actions .status{grid-column:1/-1;justify-self:start;font-size:12px;padding:4px 10px}
+  .top-actions .btn.primary{height:40px;justify-content:center}
+  /* Abas viram barra fixa no rodapé */
+  .tabs{position:fixed;top:auto;bottom:0;left:0;right:0;z-index:20;display:grid;grid-template-columns:repeat(4,1fr);gap:2px;border-radius:0;border-width:1px 0 0;padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px));background:var(--surface);box-shadow:0 -4px 20px rgba(23,27,51,.08);overflow:visible}
+  .tab{position:relative;flex-direction:column;gap:2px;height:54px;padding:0 2px;font-size:11.5px;border-radius:12px;min-width:0}
+  .tab .ti{display:block}
+  .tab .lg{display:none}
+  .tab .sh{display:inline}
+  .tab .badge{position:absolute;top:2px;left:calc(50% + 6px);min-width:18px;height:18px;padding:0 5px;font-size:10.5px}
+  .tab[aria-selected="true"]{background:var(--accent-soft);color:var(--accent)}
+  .tab[aria-selected="true"] .badge{background:var(--accent);color:var(--on-accent)}
+  /* Números e tarefas mais compactos */
+  .kpis{grid-template-columns:1fr 1fr}
+  .kpi{padding:14px}
+  .kpi .v{font-size:22px}
+  .kpi.hero,.kpi:last-child{grid-column:1/-1}
+  .kpi.hero .v{font-size:34px}
+  .kpi .d{font-size:12px}
+  .todo{grid-template-columns:1fr 1fr;gap:10px}
+  .todo-card{padding:12px;gap:4px}
+  .todo-card .n{font-size:24px}
+  .todo-card .t,.todo-card .s,.todo-card .go{font-size:12px}
+  .panel{padding:16px}
+  .grid{gap:16px}
+  /* Filtros em duas colunas */
+  .toolbar{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .toolbar .field{width:100%;min-width:0}
+  .toolbar .field:first-child{grid-column:1/-1}
+  .field input{width:100%;flex:1}
+  .field select{flex:1;min-width:0}
+  .toolbar .toggle,.toolbar .count{grid-column:1/-1;margin-left:0}
+  .key{gap:8px 12px}
+  /* Tabelas viram cartões */
+  .desk{display:none}
+  .plist{display:grid;gap:10px}
+  .ren li{grid-template-columns:1fr;gap:8px}
+  .ren .acts{justify-content:flex-start}
+  .ren .acts .btn{flex:1 1 auto;justify-content:center}
+  .seg{display:grid;width:100%}
+  dialog.drawer{width:100vw;max-width:100vw;border-radius:0;border:0}
+  .pitem-h{flex-wrap:wrap}
+  .an-row select,.an-row input{font-size:14px}
+  .ficha{padding:18px 16px calc(24px + env(safe-area-inset-bottom,0px))}
+  .toast{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation:none!important;transition:none!important}
 }
@@ -357,10 +422,10 @@ dialog form{display:grid;gap:16px;padding:22px}
   </header>
 
   <nav class="tabs" role="tablist" aria-label="Seções do painel">
-    <button class="tab" role="tab" id="t-geral" data-tab="geral" aria-controls="p-geral">Visão geral</button>
-    <button class="tab" role="tab" id="t-pagamentos" data-tab="pagamentos" aria-controls="p-pagamentos">Pagamentos <span class="badge" id="b-pag" hidden></span></button>
-    <button class="tab" role="tab" id="t-renovacoes" data-tab="renovacoes" aria-controls="p-renovacoes">Renovações <span class="badge" id="b-ren" hidden></span></button>
-    <button class="tab" role="tab" id="t-madrinhas" data-tab="madrinhas" aria-controls="p-madrinhas">Madrinhas <span class="badge neutral" id="b-mad"></span></button>
+    <button class="tab" role="tab" id="t-geral" data-tab="geral" aria-controls="p-geral"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span class="lg">Visão geral</span><span class="sh">Geral</span></button>
+    <button class="tab" role="tab" id="t-pagamentos" data-tab="pagamentos" aria-controls="p-pagamentos"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4M9 15l2 2 4-4"/></svg><span>Pagamentos</span><span class="badge" id="b-pag" hidden></span></button>
+    <button class="tab" role="tab" id="t-renovacoes" data-tab="renovacoes" aria-controls="p-renovacoes"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.9-3M4 13a8 8 0 0 0 14.9 3M5 3v5h5M19 21v-5h-5"/></svg><span>Renovações</span><span class="badge" id="b-ren" hidden></span></button>
+    <button class="tab" role="tab" id="t-madrinhas" data-tab="madrinhas" aria-controls="p-madrinhas"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5a6.5 6.5 0 0 1 3.5 5.5"/></svg><span>Madrinhas</span><span class="badge neutral" id="b-mad"></span></button>
   </nav>
 
   <!-- VISÃO GERAL -->
@@ -452,7 +517,8 @@ dialog form{display:grid;gap:16px;padding:22px}
         <span><i class="sw anual"></i>Madrinha anual</span>
         <span><i class="cell" data-s="future"></i>Mês futuro</span>
       </div>
-      <div class="table-wrap">
+      <div class="plist" id="plist"></div>
+      <div class="table-wrap desk">
         <table>
           <thead><tr id="thead"></tr></thead>
           <tbody id="tbody"></tbody>
@@ -485,7 +551,8 @@ dialog form{display:grid;gap:16px;padding:22px}
           <button type="button" data-cob="calendario">O ano do calendário (jan–dez)</button>
         </div>
       </div>
-      <div class="table-wrap">
+      <div class="plist" id="an-list"></div>
+      <div class="table-wrap desk">
         <table class="an-table">
           <thead><tr>
             <th>Madrinha</th><th>Valor informado</th><th>Valor no ano</th><th>Data do pagamento</th><th>Próxima renovação</th><th>Situação</th>
@@ -841,8 +908,8 @@ dialog form{display:grid;gap:16px;padding:22px}
     const cards = [
       {id:"cobrar", tone: abertas.length ? "warn" : "good", titulo: n ? `Cobrar ${MESES_LONGOS[n-1]}` : "Cobranças do mês",
        n: abertas.length, sub: abertas.length ? `${brl.format(valorAberto)} em aberto` : "Todas em dia neste mês", go:"Ver no controle"},
-      {id:"renovar", tone: vencidas ? "bad" : acabando.length ? "warn" : "good", titulo:"Renovações em 15 dias",
-       n: acabando.length, sub: vencidas ? `${plural(vencidas,"já venceu","já venceram")}` : acabando.length ? "Hora de chamar para renovar" : "Nenhuma perto de acabar", go:"Ver renovações"},
+      {id:"renovar", tone: vencidas ? "bad" : acab.length ? "warn" : "good", titulo:"Renovações",
+       n: acab.length, sub: vencidas ? `${plural(vencidas,"já venceu","já venceram")}` : acab.length ? "Hora de chamar para renovar" : "Nenhuma perto de acabar", go:"Ver renovações"},
       {id:"anuidades", tone: semPagAnual.length ? "warn" : "good", titulo:"Anuidades sem pagamento",
        n: semPagAnual.length, sub: semPagAnual.length ? "Informe a data do pagamento" : "Todas registradas", go:"Registrar"},
       {id:"semfim", tone: semFim.length ? "warn" : "good", titulo:"Sem data de início",
@@ -869,7 +936,10 @@ dialog form{display:grid;gap:16px;padding:22px}
     const max = Math.max(...prev, ...rec, 1);
     const step = max > 8000 ? 4000 : max > 4000 ? 2000 : max > 2000 ? 1000 : 500;
     const top = Math.ceil(max * 1.08 / step) * step;
-    const W = 1000, H = 280, L = 56, R = 8, T = 14, B = 30;
+    // Desenha na largura real da tela: no celular o texto do eixo continua legível.
+    const box = $("chart"), largura = Math.round(box.clientWidth) || 1000;
+    const estreito = largura < 600;
+    const W = Math.max(300, largura), H = estreito ? 220 : 280, L = estreito ? 40 : 56, R = 4, T = 14, B = 30;
     const pw = W - L - R, ph = H - T - B, gw = pw / 12;
     const y = v => T + ph - v / top * ph;
     const cur = state.ano === hoje.getFullYear() ? hoje.getMonth() : -1;
@@ -883,11 +953,11 @@ dialog form{display:grid;gap:16px;padding:22px}
       const cx = L + gw*i + gw/2, bw = Math.min(46, gw*.6), rw = bw*.56;
       if (prev[i]) s += `<path class="bar-rise" d="${roundTop(cx-bw/2, y(prev[i]), bw, y(0)-y(prev[i]), 5)}" fill="var(--surface-2)" stroke="var(--line-strong)" stroke-width="1.2"/>`;
       if (rec[i]) s += `<path class="bar-rise late" d="${roundTop(cx-rw/2, y(rec[i]), rw, y(0)-y(rec[i]), 4)}" fill="var(--accent)"/>`;
-      s += `<text x="${cx}" y="${H-9}" text-anchor="middle"${i===cur?' style="fill:var(--accent);font-weight:700"':''}>${MESES[i]}</text>`;
+      s += `<text x="${cx}" y="${H-9}" text-anchor="middle"${i===cur?' style="fill:var(--accent);font-weight:700"':''}>${estreito ? MESES[i][0] : MESES[i]}</text>`;
       s += `<rect class="hit" x="${L+gw*i}" y="${T}" width="${gw}" height="${ph+B}" fill="transparent" data-i="${i}" tabindex="0" role="button" aria-label="${cap(MESES_LONGOS[i])}: previsto ${brl.format(prev[i])}, recebido ${brl.format(rec[i])}. Abrir no controle de pagamentos."/>`;
     }
     s += `</svg><div class="tip" id="tip" hidden></div>`;
-    const box = $("chart"); box.innerHTML = s;
+    box.innerHTML = s;
     const tip = $("tip");
     box.querySelectorAll("rect.hit").forEach(r => {
       const i = Number(r.dataset.i);
@@ -1009,6 +1079,22 @@ dialog form{display:grid;gap:16px;padding:22px}
         <td class="r num">${brl.format(totalPago(m))}<br>${pendChip}</td>
       </tr>`;
     }).join("") : `<tr><td colspan="16" class="empty">Nenhuma madrinha encontrada com esses filtros.</td></tr>`;
+    $("plist").innerHTML = rows.length ? rows.map(m => {
+      const wa = linkWa(m), r = resumo(m), anual = m.plano === "Anual";
+      const cells = MESES.map((mm,i) => {
+        const st = estadoCelula(m, i+1), lock = st === "covered" ? " disabled" : dis;
+        return `<button class="cell${f.mes===i+1?" focus":""}" type="button" data-s="${st}" data-id="${esc(m.id)}" data-mes="${i+1}" aria-label="${esc(m.nome)}, ${MESES_LONGOS[i]}: ${ROTULO[st]}"${lock}><em>${mm}</em>${SIMBOLO[st] || "&nbsp;"}</button>`;
+      }).join("");
+      return `<div class="pitem${anual ? " anual" : ""}">
+        <div class="pitem-h">
+          <span><button class="link-name" type="button" data-ficha="${esc(m.id)}">${esc(m.nome.trim())}</button>${anual ? ' <span class="tag-anual">Anual</span>' : ""}
+            <small>${anual ? brl.format(valorAnual(m)) + "/ano" : brl.format(m.valor) + "/mês"} · ${esc(m.contato)}</small></span>
+          ${wa ? `<a class="wa" href="${wa}" target="_blank" rel="noopener" aria-label="WhatsApp de ${esc(m.nome)}">${WA_ICON}</a>` : ""}
+        </div>
+        <div class="months">${cells}</div>
+        <div class="pitem-f"><span class="chip ${r.c}">${esc(r.t)}</span><span class="num">Pago em ${state.ano}: ${brl.format(totalPago(m))}</span></div>
+      </div>`;
+    }).join("") : `<p class="empty">Nenhuma madrinha encontrada com esses filtros.</p>`;
     const somaMes = Array(12).fill(0); let tot = 0;
     rows.forEach(m => Object.entries(pagosDe(m)).forEach(([k,p]) => { somaMes[Number(k)-1] += Number(p.valor)||0; tot += Number(p.valor)||0; }));
     $("tfoot").innerHTML = `<td class="name">Total recebido (${rows.length})</td><td></td><td></td>` +
@@ -1086,6 +1172,28 @@ dialog form{display:grid;gap:16px;padding:22px}
         <td><span class="chip ${r.c}">${esc(r.t)}</span></td>
       </tr>`;
     }).join("") : `<tr><td colspan="6" class="empty">Nenhuma madrinha no plano anual.</td></tr>`;
+    $("an-list").innerHTML = anuais.length ? anuais.map(m => {
+      const dataPag = dataPagamento(pagosDe(m), state.ano) || dataPagamento(state.pagAnt[m.id] || {}, state.ano - 1);
+      const renov = renovacaoAnual(m), dias = diasParaFim(m), r = resumo(m), un = m.unidadeValor || "";
+      return `<div class="pitem anual">
+        <div class="pitem-h">
+          <span><button class="link-name" type="button" data-ficha="${esc(m.id)}">${esc(m.nome.trim())}</button>
+            <small>${brl.format(m.valor)} informado · ${brl.format(valorAnual(m))} no ano</small></span>
+          <span class="chip ${r.c}">${esc(r.t)}</span>
+        </div>
+        <div class="an-row">
+          <label>O valor é
+            <select data-an="unidade" data-id="${esc(m.id)}"${dis}>
+              <option value=""${!un?" selected":""}>não confirmado</option>
+              <option value="ano"${un==="ano"?" selected":""}>por ano</option>
+              <option value="mes"${un==="mes"?" selected":""}>por mês</option>
+            </select></label>
+          <label>Data do pagamento
+            <input type="date" data-an="data" data-id="${esc(m.id)}" value="${dataPag}" max="${isoData(hoje)}"${dis}></label>
+        </div>
+        <div class="pitem-f"><span>Próxima renovação</span><b class="num">${renov ? `${renov.toLocaleDateString("pt-BR")} · ${dias + 1 > 0 ? "em " + plural(dias + 1,"dia","dias") : "vencida"}` : "—"}</b></div>
+      </div>`;
+    }).join("") : `<p class="empty">Nenhuma madrinha no plano anual.</p>`;
   }
 
   // ---------- Madrinhas ----------
@@ -1550,6 +1658,13 @@ dialog form{display:grid;gap:16px;padding:22px}
     assinarPagamentos();
   }
 
+  // Redesenha o gráfico quando a largura da tela muda (girar o celular, redimensionar a janela).
+  let larguraAnt = window.innerWidth;
+  window.addEventListener("resize", debounce(() => {
+    if (window.innerWidth === larguraAnt) return;
+    larguraAnt = window.innerWidth;
+    if (state.tab === "geral") renderChart();
+  }, 150));
   $("fm").innerHTML = `<option value="0">Todos</option>` + MESES_LONGOS.map((m,i) => `<option value="${i+1}">${cap(m)}</option>`).join("");
   render();
   conectar();
