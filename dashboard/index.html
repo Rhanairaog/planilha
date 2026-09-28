@@ -334,6 +334,36 @@ dialog form{display:grid;gap:16px;padding:22px}
   .fgrid{grid-template-columns:1fr}
   .tab{padding:0 12px}
 }
+/* Relatório */
+.fchip[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
+.rel-status{font-size:13.5px;color:var(--ink-2);display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.rel{display:grid;gap:18px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:28px}
+.rel-h{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:10px;padding-bottom:16px;border-bottom:1px solid var(--line)}
+.rel-h h2{font-size:26px}
+.rel-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.rel-kpis div{border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;gap:4px}
+.rel-kpis b{font-family:var(--display);font-weight:400;font-size:24px}
+.rel-kpis span{font-size:12.5px;color:var(--muted)}
+.rel-sec{display:grid;gap:10px}
+.rel-sec h3{font-size:18px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.rel-sec h3 small{font-family:var(--body);font-size:13px;color:var(--muted)}
+.rel table{min-width:0;font-size:14px}
+.rel td,.rel th{padding:8px 10px}
+.rel thead th{position:static}
+.rel tfoot td{padding:8px 10px}
+.mov{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.mov div{border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;gap:6px;align-content:start}
+.mov b{font-size:13px;color:var(--ink-2)}
+.mov ul{margin:0;padding-left:18px;font-size:14px;display:grid;gap:2px}
+.mov p{font-size:13px;color:var(--muted)}
+.rel .empty{padding:14px;text-align:left}
+@media (max-width:720px){
+  .rel{padding:16px}
+  .rel-kpis{grid-template-columns:1fr 1fr}
+  .mov{grid-template-columns:1fr}
+  .rel .rel-tab{overflow-x:auto}
+}
+
 /* Ícones das abas e listas de celular (escondidos no computador) */
 .tab .ti{display:none;width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .tab .sh{display:none}
@@ -357,8 +387,8 @@ dialog form{display:grid;gap:16px;padding:22px}
   .top-actions .status{grid-column:1/-1;justify-self:start;font-size:12px;padding:4px 10px}
   .top-actions .btn.primary{height:40px;justify-content:center}
   /* Abas viram barra fixa no rodapé */
-  .tabs{position:fixed;top:auto;bottom:0;left:0;right:0;z-index:20;display:grid;grid-template-columns:repeat(4,1fr);gap:2px;border-radius:0;border-width:1px 0 0;padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px));background:var(--surface);box-shadow:0 -4px 20px rgba(23,27,51,.08);overflow:visible}
-  .tab{position:relative;flex-direction:column;gap:2px;height:54px;padding:0 2px;font-size:11.5px;border-radius:12px;min-width:0}
+  .tabs{position:fixed;top:auto;bottom:0;left:0;right:0;z-index:20;display:grid;grid-template-columns:repeat(5,1fr);gap:2px;border-radius:0;border-width:1px 0 0;padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px));background:var(--surface);box-shadow:0 -4px 20px rgba(23,27,51,.08);overflow:visible}
+  .tab{position:relative;flex-direction:column;gap:2px;height:54px;padding:0 1px;font-size:10.5px;border-radius:12px;min-width:0}
   .tab .ti{display:block}
   .tab .lg{display:none}
   .tab .sh{display:inline}
@@ -426,6 +456,7 @@ dialog form{display:grid;gap:16px;padding:22px}
     <button class="tab" role="tab" id="t-pagamentos" data-tab="pagamentos" aria-controls="p-pagamentos"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4M9 15l2 2 4-4"/></svg><span>Pagamentos</span><span class="badge" id="b-pag" hidden></span></button>
     <button class="tab" role="tab" id="t-renovacoes" data-tab="renovacoes" aria-controls="p-renovacoes"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.9-3M4 13a8 8 0 0 0 14.9 3M5 3v5h5M19 21v-5h-5"/></svg><span>Renovações</span><span class="badge" id="b-ren" hidden></span></button>
     <button class="tab" role="tab" id="t-madrinhas" data-tab="madrinhas" aria-controls="p-madrinhas"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5a6.5 6.5 0 0 1 3.5 5.5"/></svg><span>Madrinhas</span><span class="badge neutral" id="b-mad"></span></button>
+    <button class="tab" role="tab" id="t-relatorio" data-tab="relatorio" aria-controls="p-relatorio"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg><span>Relatório</span></button>
   </nav>
 
   <!-- VISÃO GERAL -->
@@ -585,6 +616,24 @@ dialog form{display:grid;gap:16px;padding:22px}
       <div class="cards" id="cards"></div>
     </section>
   </section>
+
+  <!-- RELATÓRIO -->
+  <section class="tabpanel" id="p-relatorio" role="tabpanel" aria-labelledby="t-relatorio" hidden>
+    <section class="panel" aria-labelledby="h-rel">
+      <div class="panel-h">
+        <h2 id="h-rel">Relatório mensal</h2>
+        <p>Todo dia 1º o painel fecha sozinho o relatório do mês anterior.</p>
+      </div>
+      <div class="toolbar">
+        <div class="field"><label for="rm">Mês</label><select id="rm"></select></div>
+        <button class="btn" type="button" id="rel-salvar">Salvar relatório</button>
+        <button class="btn primary" type="button" id="rel-pdf">Baixar PDF</button>
+      </div>
+      <div class="rel-status" id="rel-status"></div>
+      <div class="fchips" id="rel-salvos"></div>
+    </section>
+    <article class="rel" id="rel"></article>
+  </section>
 </div>
 
 <!-- Ficha da madrinha -->
@@ -673,7 +722,7 @@ dialog form{display:grid;gap:16px;padding:22px}
   const MESES = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
   const MESES_LONGOS = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
   const REGIOES = {"11":"São Paulo e Grande SP","16":"Ribeirão Preto e região","18":"Presidente Prudente e região"};
-  const TABS = ["geral","pagamentos","renovacoes","madrinhas"];
+  const TABS = ["geral","pagamentos","renovacoes","madrinhas","relatorio"];
   const brl = new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:0});
   const int = new Intl.NumberFormat("pt-BR");
   const $ = id => document.getElementById(id);
@@ -702,7 +751,8 @@ dialog form{display:grid;gap:16px;padding:22px}
     tab: "geral",
     f: {q: "", plano: "", situacao: "Ativa", mes: 0, aberto: false},                               // filtros de Pagamentos
     g: {q: "", grupo: "", regiao: "", situacao: "Ativa", semFim: false, ordem: "ordem"},            // filtros de Madrinhas
-    ficha: null
+    ficha: null,
+    relatorios: {}, relMes: 0, relAtual: null, pagCarregado: false, relCarregado: false
   };
   try {
     const a = Number(localStorage.getItem("painel-ano")); if (a >= 2020 && a <= 2100) state.ano = a;
@@ -1314,6 +1364,254 @@ dialog form{display:grid;gap:16px;padding:22px}
   $("ficha").addEventListener("close", () => { state.ficha = null; });
   $("ficha").addEventListener("click", e => { if (e.target === $("ficha")) $("ficha").close(); });
 
+  // ---------- Relatório mensal ----------
+  const pad2 = n => String(n).padStart(2, "0");
+  const idRel = (ano, mes) => `${ano}-${pad2(mes)}`;
+  // Executa um cálculo como se o painel estivesse mostrando outro ano (os cálculos leem o estado).
+  function comAno(ano, pag, pagAnt, fn){
+    const antes = [state.ano, state.pagamentos, state.pagAnt];
+    state.ano = ano; state.pagamentos = pag; state.pagAnt = pagAnt;
+    try { return fn(); } finally { [state.ano, state.pagamentos, state.pagAnt] = antes; }
+  }
+  const noMes = (iso, ano, mes) => { const d = parseData(iso); return !!d && d.getFullYear() === ano && d.getMonth() + 1 === mes; };
+  // Monta os números do mês com os dados atuais. O resultado é guardado tal como está (retrato do fechamento).
+  function gerarRelatorio(mes){
+    const ano = state.ano, at = ativas();
+    const valorNoMes = m => m.plano === "Anual" ? valorAnual(m) : m.valor;
+    const recebido = recebidoNoMes(mes, state.pagamentos);
+    const anterior = mes > 1 ? recebidoNoMes(mes - 1, state.pagamentos) : recebidoNoMes(12, state.pagAnt);
+    const previsto = at.filter(m => m.plano === "Mensal" && mesInicio(m) <= mes).reduce((s,m)=>s+m.valor,0)
+      + at.filter(m => m.plano === "Anual" && vencimento(m) === mes).reduce((s,m)=>s+valorAnual(m),0);
+    let acumulado = 0; for (let i = 1; i <= mes; i++) acumulado += recebidoNoMes(i, state.pagamentos);
+    const previstoAte = at.filter(m => m.plano === "Mensal").reduce((s,m)=>s + m.valor * mesesDevidos(m, mes), 0)
+      + at.filter(m => m.plano === "Anual" && (vencimento(m) || 1) <= mes).reduce((s,m)=>s+valorAnual(m),0);
+    const linha = m => ({nome: m.nome.trim(), plano: m.plano, contato: m.contato || ""});
+    const pagaram = state.madrinhas.filter(m => pagosDe(m)[mes]).map(m => ({...linha(m), valor: Number(pagosDe(m)[mes].valor) || 0, em: pagosDe(m)[mes].em || ""}))
+      .sort((a,b) => a.nome.localeCompare(b.nome, "pt-BR"));
+    const naoPagaram = at.filter(m => estadoCelula(m, mes) === "open").map(m => ({...linha(m), valor: valorNoMes(m)}))
+      .sort((a,b) => a.nome.localeCompare(b.nome, "pt-BR"));
+    const cobertas = at.filter(m => ["paid","covered"].includes(estadoCelula(m, mes)));
+    const devidas = at.filter(m => m.plano === "Anual" || mesInicio(m) <= mes);
+    const entraram = [], renovaram = [];
+    state.madrinhas.forEach(m => {
+      if (m.plano === "Mensal"){ if (noMes(m.inicio, ano, mes)) entraram.push({...linha(m), valor: m.valor, data: m.inicio}); return; }
+      const p = pagosDe(m)[mes]; if (!p) return;
+      const item = {...linha(m), valor: valorAnual(m), data: dataPagamento(pagosDe(m), ano)};
+      (Object.keys(state.pagAnt[m.id] || {}).length ? renovaram : entraram).push(item);
+    });
+    const sairam = state.madrinhas.filter(m => m.situacao !== "Ativa" && noMes(m.situacaoEm, ano, mes))
+      .map(m => ({...linha(m), situacao: m.situacao, data: m.situacaoEm}));
+    return {ano, mes, recebido, anterior, previsto, acumulado, previstoAte,
+      presentesMes: cobertas.reduce((s,m)=>s+m.presentes,0), presentesPossiveis: devidas.reduce((s,m)=>s+m.presentes,0),
+      ativas: at.length, pagaram, naoPagaram, entraram, renovaram, sairam};
+  }
+
+  function htmlTabela(cab, linhas, rodape){
+    return `<div class="table-wrap rel-tab"><table><thead><tr>${cab.map(c => `<th${c.r ? ' class="r"' : ""}>${c.t}</th>`).join("")}</tr></thead>
+      <tbody>${linhas.join("")}</tbody>${rodape ? `<tfoot><tr>${rodape}</tr></tfoot>` : ""}</table></div>`;
+  }
+  const tagPlano = pl => pl === "Anual" ? '<span class="tag-anual">Anual</span>' : "Mensal";
+  const listaMov = (itens, vazio, fmt) => itens.length ? `<ul>${itens.map(i => `<li>${fmt(i)}</li>`).join("")}</ul>` : `<p>${vazio}</p>`;
+
+  function renderRelatorio(){
+    if (!$("rm")) return;
+    const n = mesesPassados();
+    if (!state.relMes || state.relMes > 12) state.relMes = Math.max(1, (state.ano === hoje.getFullYear() ? n - 1 : n) || 1);
+    $("rm").value = String(state.relMes);
+    const id = idRel(state.ano, state.relMes), salvo = state.relatorios[id];
+    const r = salvo ? salvo.dados : gerarRelatorio(state.relMes);
+    state.relAtual = r;
+    const ok = podeGravar(), nomeMes = MESES_LONGOS[r.mes - 1];
+    $("rel-salvar").textContent = salvo ? "Atualizar com os dados de hoje" : "Salvar relatório";
+    $("rel-salvar").disabled = !ok;
+    $("rel-status").innerHTML = salvo
+      ? `<span class="chip good">✓ Fechado</span> Relatório salvo em ${fmtData(salvo.geradoEm)}${salvo.auto ? " automaticamente" : ""}. Pagamentos marcados depois disso não entram até você atualizar.`
+      : `<span class="chip neutral">Prévia</span> Montado com os dados de agora e ainda não salvo.`;
+    const ids = Object.keys(state.relatorios).filter(k => k.startsWith(state.ano + "-")).sort();
+    $("rel-salvos").innerHTML = ids.length ? `<span class="hint">Salvos em ${state.ano}:</span>` + ids.map(k => {
+      const m = Number(k.slice(5));
+      return `<button class="fchip" type="button" data-relmes="${m}" style="padding-right:12px"${m === state.relMes ? ' aria-pressed="true"' : ""}>${cap(MESES_LONGOS[m-1])}</button>`;
+    }).join("") : "";
+
+    const pct = r.previsto ? Math.round(r.recebido / r.previsto * 100) : 0;
+    const dif = r.anterior ? Math.round((r.recebido - r.anterior) / r.anterior * 100) : null;
+    const nomeAnt = r.mes > 1 ? MESES_LONGOS[r.mes - 2] : "dezembro";
+    const totPago = r.pagaram.reduce((s,x)=>s+x.valor,0), totAberto = r.naoPagaram.reduce((s,x)=>s+x.valor,0);
+    $("rel").innerHTML = `
+      <header class="rel-h">
+        <div style="display:grid;gap:4px"><span class="eyebrow">Instituto Fada Madrinha · relatório mensal</span><h2>${cap(nomeMes)} de ${r.ano}</h2></div>
+        <span class="hint">${r.ativas} madrinhas ativas</span>
+      </header>
+      <div class="rel-kpis">
+        <div><span>Recebido no mês</span><b class="num">${brl.format(r.recebido)}</b><span>${pct}% de ${brl.format(r.previsto)} previstos</span></div>
+        <div><span>Comparado a ${nomeAnt}</span><b class="num">${dif === null ? "—" : (dif > 0 ? "▲ " : dif < 0 ? "▼ " : "") + Math.abs(dif) + "%"}</b><span>${brl.format(r.anterior)} em ${nomeAnt}</span></div>
+        <div><span>Acumulado no ano</span><b class="num">${brl.format(r.acumulado)}</b><span>de ${brl.format(r.previstoAte)} previstos até ${nomeMes}</span></div>
+        <div><span>Presentes garantidos</span><b class="num">${r.presentesMes}</b><span>de ${r.presentesPossiveis} possíveis no mês</span></div>
+      </div>
+      <section class="rel-sec">
+        <h3>Quem pagou <small>${plural(r.pagaram.length,"madrinha","madrinhas")} · ${brl.format(totPago)}</small></h3>
+        ${r.pagaram.length ? htmlTabela([{t:"Madrinha"},{t:"Plano"},{t:"Registrado em"},{t:"Valor",r:1}],
+          r.pagaram.map(x => `<tr><td>${esc(x.nome)}</td><td>${tagPlano(x.plano)}</td><td class="num">${fmtData(x.em) || "—"}</td><td class="r num">${brl.format(x.valor)}</td></tr>`),
+          `<td colspan="3">Total recebido</td><td class="r num">${brl.format(totPago)}</td>`) : `<p class="empty">Nenhum pagamento marcado em ${nomeMes}.</p>`}
+      </section>
+      <section class="rel-sec">
+        <h3>Quem não pagou <small>${plural(r.naoPagaram.length,"madrinha","madrinhas")} · ${brl.format(totAberto)} em aberto</small></h3>
+        ${r.naoPagaram.length ? htmlTabela([{t:"Madrinha"},{t:"Plano"},{t:"Contato"},{t:"Valor",r:1}],
+          r.naoPagaram.map(x => `<tr><td>${esc(x.nome)}</td><td>${tagPlano(x.plano)}</td><td class="num">${esc(x.contato)}</td><td class="r num">${brl.format(x.valor)}</td></tr>`),
+          `<td colspan="3">Total em aberto</td><td class="r num">${brl.format(totAberto)}</td>`) : `<p class="empty">Todas as madrinhas com cobrança em ${nomeMes} pagaram.</p>`}
+      </section>
+      <section class="rel-sec">
+        <h3>Movimento das madrinhas</h3>
+        <div class="mov">
+          <div><b>Entraram (${r.entraram.length})</b>${listaMov(r.entraram, "Nenhuma entrada no mês.", x => `${esc(x.nome)} · ${x.plano === "Anual" ? brl.format(x.valor) + "/ano" : brl.format(x.valor) + "/mês"} · desde ${fmtData(x.data)}`)}</div>
+          <div><b>Renovaram (${r.renovaram.length})</b>${listaMov(r.renovaram, "Nenhuma anuidade renovada.", x => `${esc(x.nome)} · ${brl.format(x.valor)} · ${fmtData(x.data)}`)}</div>
+          <div><b>Encerraram ou pausaram (${r.sairam.length})</b>${listaMov(r.sairam, "Nenhuma saída no mês.", x => `${esc(x.nome)} · ${esc(x.situacao.toLowerCase())} em ${fmtData(x.data)}`)}</div>
+        </div>
+      </section>`;
+  }
+
+  async function salvarRelatorio(mes, auto, dados){
+    const id = idRel(dados ? dados.ano : state.ano, mes);
+    const doc = {ano: dados ? dados.ano : state.ano, mes, geradoEm: isoData(hoje), auto: !!auto, dados: dados || gerarRelatorio(mes)};
+    state.relatorios[id] = doc;
+    if (!auto) renderRelatorio();
+    await gravar(`relatorios/${id}`, ref => ref.set(doc));
+    return doc;
+  }
+  // No primeiro acesso a partir do dia 1º, fecha sozinho o relatório do mês anterior.
+  let autoFeito = false;
+  async function autoRelatorio(){
+    if (autoFeito || !podeGravar() || !state.pagCarregado || !state.relCarregado) return;
+    autoFeito = true;
+    const alvo = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1), ano = alvo.getFullYear(), mes = alvo.getMonth() + 1;
+    const id = idRel(ano, mes);
+    try {
+      if (state.relatorios[id] || (await state.db.doc(`relatorios/${id}`).get()).exists) return;
+      let dados;
+      if (ano === state.ano) dados = gerarRelatorio(mes);
+      else {
+        const snap = await state.db.collection("pagamentos").where("ano","in",[ano-1, ano]).get();
+        const p = {}, a = {};
+        snap.docs.forEach(d => { const v = d.data(); if (v && v.madrinha) (v.ano === ano ? p : a)[v.madrinha] = {...(v.meses || {})}; });
+        dados = comAno(ano, p, a, () => gerarRelatorio(mes));
+      }
+      await salvarRelatorio(mes, true, dados);
+      renderRelatorio();
+      toast(`Relatório de ${MESES_LONGOS[mes-1]} fechado automaticamente.`);
+    } catch (e) {}
+  }
+
+  // PDF montado no navegador (jsPDF) e entregue pelo download do visualizador.
+  let jsPDFpronto = null;
+  function carregarJsPDF(){
+    if (window.jspdf) return Promise.resolve(window.jspdf.jsPDF);
+    return jsPDFpronto ||= new Promise((ok, erro) => {
+      const sc = document.createElement("script");
+      sc.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+      sc.onload = () => window.jspdf ? ok(window.jspdf.jsPDF) : erro(new Error("jsPDF"));
+      sc.onerror = () => { jsPDFpronto = null; erro(new Error("jsPDF")); };
+      document.head.appendChild(sc);
+    });
+  }
+  function montarPDF(JsPDF, r){
+    const doc = new JsPDF({unit: "mm", format: "a4"});
+    const W = 210, M = 16, AZUL = [47,63,153], AMEIXA = [138,58,134], CINZA = [111,117,148], TINTA = [23,27,51], LINHA = [225,227,238];
+    const nomeMes = MESES_LONGOS[r.mes - 1];
+    let y = M;
+    const txt = (t, x, yy, o = {}) => { doc.setFont("helvetica", o.b ? "bold" : "normal"); doc.setFontSize(o.s || 10); doc.setTextColor(...(o.c || TINTA)); doc.text(String(t), x, yy, o.a ? {align: o.a} : undefined); };
+    const quebra = h => { if (y + h > 297 - M){ rodape(); doc.addPage(); y = M; } };
+    let pagina = 1;
+    const rodape = () => { txt(`Instituto Fada Madrinha · Relatório de ${nomeMes} de ${r.ano} · página ${pagina++}`, W / 2, 297 - 8, {s: 8, c: CINZA, a: "center"}); };
+
+    txt("INSTITUTO FADA MADRINHA · RELATÓRIO MENSAL", M, y + 4, {s: 8.5, b: 1, c: CINZA});
+    txt(`${cap(nomeMes)} de ${r.ano}`, M, y + 15, {s: 22, c: TINTA});
+    txt(`${r.ativas} madrinhas ativas · gerado em ${new Date().toLocaleDateString("pt-BR")}`, W - M, y + 15, {s: 9, c: CINZA, a: "right"});
+    y += 21; doc.setDrawColor(...LINHA); doc.line(M, y, W - M, y); y += 6;
+
+    const pct = r.previsto ? Math.round(r.recebido / r.previsto * 100) : 0;
+    const dif = r.anterior ? Math.round((r.recebido - r.anterior) / r.anterior * 100) : null;
+    const nomeAnt = r.mes > 1 ? MESES_LONGOS[r.mes - 2] : "dezembro";
+    const kp = [
+      ["Recebido no mês", brl.format(r.recebido), `${pct}% de ${brl.format(r.previsto)} previstos`],
+      [`Comparado a ${nomeAnt}`, dif === null ? "—" : `${dif > 0 ? "+" : dif < 0 ? "-" : ""}${Math.abs(dif)}%`, `${brl.format(r.anterior)} em ${nomeAnt}`],
+      ["Acumulado no ano", brl.format(r.acumulado), `de ${brl.format(r.previstoAte)} até ${nomeMes}`],
+      ["Presentes garantidos", String(r.presentesMes), `de ${r.presentesPossiveis} possíveis no mês`]
+    ];
+    const bw = (W - 2 * M - 9) / 4;
+    kp.forEach((k, i) => {
+      const x = M + i * (bw + 3);
+      doc.setDrawColor(...LINHA); doc.setFillColor(i === 0 ? 47 : 248, i === 0 ? 63 : 249, i === 0 ? 153 : 252);
+      doc.roundedRect(x, y, bw, 26, 2, 2, "FD");
+      const c = i === 0 ? [255,255,255] : TINTA, c2 = i === 0 ? [220,224,245] : CINZA;
+      txt(k[0], x + 3, y + 6, {s: 7.5, c: c2});
+      txt(k[1], x + 3, y + 15, {s: 14, b: 1, c});
+      doc.setFontSize(7); txt(doc.splitTextToSize(k[2], bw - 6)[0], x + 3, y + 22, {s: 7, c: c2});
+    });
+    y += 34;
+
+    const tabela = (titulo, resumo, cols, linhas, total) => {
+      quebra(20);
+      txt(titulo, M, y, {s: 13, b: 1, c: TINTA}); txt(resumo, W - M, y, {s: 9, c: CINZA, a: "right"}); y += 4;
+      if (!linhas.length){ y += 5; txt("Nenhum registro no mês.", M, y, {s: 9.5, c: CINZA}); y += 9; return; }
+      const larg = cols.map(c => c.w * (W - 2 * M));
+      const cab = () => {
+        doc.setFillColor(243,244,249); doc.rect(M, y, W - 2 * M, 7, "F");
+        let x = M; cols.forEach((c, i) => { txt(c.t.toUpperCase(), c.r ? x + larg[i] - 2 : x + 2, y + 4.8, {s: 7, b: 1, c: CINZA, a: c.r ? "right" : undefined}); x += larg[i]; });
+        y += 7;
+      };
+      cab();
+      linhas.forEach((l, j) => {
+        if (y + 7 > 297 - M - 6){ rodape(); doc.addPage(); y = M; cab(); }
+        let x = M;
+        cols.forEach((c, i) => {
+          const v = String(l[i] ?? "");
+          const anual = c.plano && v === "Anual";
+          const cortado = doc.splitTextToSize(v, larg[i] - 4)[0] || "";
+          txt(cortado, c.r ? x + larg[i] - 2 : x + 2, y + 4.8, {s: 9, b: anual, c: anual ? AMEIXA : TINTA, a: c.r ? "right" : undefined});
+          x += larg[i];
+        });
+        y += 7; doc.setDrawColor(...LINHA); doc.line(M, y, W - M, y);
+      });
+      if (total){ y += 1; txt(total[0], M + 2, y + 4.8, {s: 9, b: 1}); txt(total[1], W - M - 2, y + 4.8, {s: 9, b: 1, a: "right"}); y += 7; }
+      y += 7;
+    };
+    const totPago = r.pagaram.reduce((s,x)=>s+x.valor,0), totAberto = r.naoPagaram.reduce((s,x)=>s+x.valor,0);
+    tabela("Quem pagou", `${plural(r.pagaram.length,"madrinha","madrinhas")} · ${brl.format(totPago)}`,
+      [{t:"Madrinha", w:.42},{t:"Plano", w:.16, plano:1},{t:"Registrado em", w:.2},{t:"Valor", w:.22, r:1}],
+      r.pagaram.map(x => [x.nome, x.plano, fmtData(x.em) || "—", brl.format(x.valor)]), ["Total recebido", brl.format(totPago)]);
+    tabela("Quem não pagou", `${plural(r.naoPagaram.length,"madrinha","madrinhas")} · ${brl.format(totAberto)} em aberto`,
+      [{t:"Madrinha", w:.42},{t:"Plano", w:.16, plano:1},{t:"Contato", w:.22},{t:"Valor", w:.2, r:1}],
+      r.naoPagaram.map(x => [x.nome, x.plano, x.contato, brl.format(x.valor)]), ["Total em aberto", brl.format(totAberto)]);
+    const movs = [
+      ["Entraram", r.entraram.map(x => `${x.nome} · ${brl.format(x.valor)}${x.plano === "Anual" ? "/ano" : "/mês"} · desde ${fmtData(x.data)}`)],
+      ["Renovaram", r.renovaram.map(x => `${x.nome} · ${brl.format(x.valor)} · ${fmtData(x.data)}`)],
+      ["Encerraram ou pausaram", r.sairam.map(x => `${x.nome} · ${x.situacao.toLowerCase()} em ${fmtData(x.data)}`)]
+    ];
+    quebra(20); txt("Movimento das madrinhas", M, y, {s: 13, b: 1}); y += 7;
+    movs.forEach(([t, itens]) => {
+      quebra(12); txt(`${t} (${itens.length})`, M, y, {s: 10, b: 1, c: AZUL}); y += 5.5;
+      (itens.length ? itens : ["Nenhum registro no mês."]).forEach(i => { quebra(6); txt(itens.length ? "• " + i : i, M + 3, y, {s: 9.5, c: itens.length ? TINTA : CINZA}); y += 5.2; });
+      y += 3;
+    });
+    rodape();
+    return doc.output("arraybuffer");
+  }
+  async function baixarPDF(){
+    const b = $("rel-pdf"), r = state.relAtual; if (!r) return;
+    b.disabled = true; const txtBtn = b.textContent; b.textContent = "Gerando PDF…";
+    try {
+      const dl = window.claude && window.claude.use ? await window.claude.use("downloads") : null;
+      if (!dl){ toast("O download não está disponível neste visualizador."); return; }
+      const JsPDF = await carregarJsPDF();
+      const dados = montarPDF(JsPDF, r);
+      await dl.save({filename: `relatorio-madrinhas-${idRel(r.ano, r.mes)}.pdf`, data: dados});
+      toast("PDF salvo.");
+    } catch (e) {
+      if (e && e.code === "declined") return;
+      toast(e && e.message === "jsPDF" ? "Não foi possível carregar o gerador de PDF. Tente de novo." : "Não foi possível baixar o PDF.");
+    } finally { b.disabled = false; b.textContent = txtBtn; }
+  }
+
   // ---------- Estrutura: abas, status, render ----------
   const podeGravar = () => state.podeEditar && state.fonte === "db";
   function renderAbas(){
@@ -1344,6 +1642,7 @@ dialog form{display:grid;gap:16px;padding:22px}
     renderAbas();
     renderKpis(); renderTodo(); renderChart(); renderComp(); renderReg();
     renderPagamentos(); renderRenovacoes(); renderAnuidades(); renderMadrinhas();
+    renderRelatorio();
     if (state.ficha) renderFicha();
     renderStatus();
   }
@@ -1392,7 +1691,7 @@ dialog form{display:grid;gap:16px;padding:22px}
 
   function mudarAno(d){
     state.ano += d; try { localStorage.setItem("painel-ano", state.ano); } catch (e) {}
-    state.pagamentos = {}; state.pagAnt = {}; render(); assinarPagamentos();
+    state.pagamentos = {}; state.pagAnt = {}; state.relMes = 0; render(); assinarPagamentos();
   }
   $("yp").addEventListener("click", () => mudarAno(-1));
   $("yn").addEventListener("click", () => mudarAno(1));
@@ -1519,7 +1818,7 @@ dialog form{display:grid;gap:16px;padding:22px}
         return;
       }
       encerrarPendente = null;
-      salvarMadrinha(m, {situacao: "Encerrada"}, `${m.nome.trim()}: assinatura encerrada.`);
+      salvarMadrinha(m, {situacao: "Encerrada", situacaoEm: isoData(hoje)}, `${m.nome.trim()}: assinatura encerrada.`);
     }
   });
 
@@ -1607,6 +1906,8 @@ dialog form{display:grid;gap:16px;padding:22px}
     const ordem = editando ? editando.ordem : Math.max(-1, ...state.madrinhas.map(m => m.ordem ?? 0)) + 1;
     const {id: _id, ...extras} = editando || {};
     const doc = {...extras, nome, plano: $("f-plano").value, valor, presentes, situacao: $("f-sit").value, contato: $("f-cont").value.trim(), ordem, inicio, fim};
+    // Guarda quando a situação mudou, para o movimento do relatório mensal.
+    if (!editando || editando.situacao !== doc.situacao) doc.situacaoEm = isoData(hoje);
     if (doc.plano === "Anual" && !Number(doc.mesRenovacao) && parseData(inicio)) doc.mesRenovacao = parseData(inicio).getMonth() + 1;
     const novo = {id, ...doc};
     const existe = state.madrinhas.some(m => m.id === id);
@@ -1629,7 +1930,7 @@ dialog form{display:grid;gap:16px;padding:22px}
         const v = d.data(); if (!v || !v.madrinha) return;
         (v.ano === ano ? p : a)[v.madrinha] = {...(v.meses || {})};
       });
-      state.pagamentos = p; state.pagAnt = a; render();
+      state.pagamentos = p; state.pagAnt = a; state.pagCarregado = true; render(); autoRelatorio();
     }, () => {});
   }
   async function conectar(){
@@ -1648,8 +1949,14 @@ dialog form{display:grid;gap:16px;padding:22px}
       state.madrinhas = snap.docs.map(d => ({id: d.id, ...d.data()}))
         .map(m => ({...m, valor: Number(m.valor)||0, presentes: Number(m.presentes)||0, contato: String(m.contato||""), nome: String(m.nome||"")}))
         .sort((a,b) => (a.ordem ?? 1e9) - (b.ordem ?? 1e9) || a.nome.localeCompare(b.nome,"pt-BR"));
-      render();
+      render(); autoRelatorio();
     }, e => { if (e && e.code === "revoked"){ state.db = null; state.podeEditar = false; render(); } });
+    db.collection("relatorios").onSnapshot(snap => {
+      const r = {};
+      snap.docs.forEach(d => { const v = d.data(); if (v && v.dados) r[d.id] = v; });
+      state.relatorios = r; state.relCarregado = true;
+      renderRelatorio(); autoRelatorio();
+    }, () => {});
     db.doc("config/anuidades").onSnapshot(snap => {
       const c = snap.exists && snap.data().cobertura;
       state.cobertura = c === "calendario" ? "calendario" : "12meses";
@@ -1665,6 +1972,14 @@ dialog form{display:grid;gap:16px;padding:22px}
     larguraAnt = window.innerWidth;
     if (state.tab === "geral") renderChart();
   }, 150));
+  $("rm").innerHTML = MESES_LONGOS.map((m,i) => `<option value="${i+1}">${cap(m)}</option>`).join("");
+  $("rm").addEventListener("change", e => { state.relMes = Number(e.target.value); renderRelatorio(); });
+  $("rel-pdf").addEventListener("click", baixarPDF);
+  $("rel-salvar").addEventListener("click", () => {
+    if (!podeGravar()) return;
+    salvarRelatorio(state.relMes, false).then(() => toast(`Relatório de ${MESES_LONGOS[state.relMes-1]} salvo.`)).catch(erroGravacao);
+  });
+  $("rel-salvos").addEventListener("click", e => { const b = e.target.closest("[data-relmes]"); if (b){ state.relMes = Number(b.dataset.relmes); renderRelatorio(); } });
   $("fm").innerHTML = `<option value="0">Todos</option>` + MESES_LONGOS.map((m,i) => `<option value="${i+1}">${cap(m)}</option>`).join("");
   render();
   conectar();
