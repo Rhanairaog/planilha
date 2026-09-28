@@ -211,6 +211,7 @@ td.m{padding:4px 3px;text-align:center}
 .cell[data-s="paid"]{background:var(--good);color:var(--surface);border-color:var(--good)}
 .cell[data-s="covered"]{background:var(--good-soft);color:var(--good);cursor:default}
 .cell[data-s="due"]{border:1.5px solid var(--accent);color:var(--accent);background:var(--accent-soft)}
+.cell[data-s="pre"]{border:1px dotted var(--line-strong);color:var(--muted);background:repeating-linear-gradient(135deg,transparent 0 4px,var(--surface-2) 4px 8px)}
 .cell:not([disabled]):hover{box-shadow:0 0 0 2px var(--accent);transform:scale(1.06)}
 .cell[disabled]{cursor:default}
 .cell.pop{animation:pop .35s ease-out}
@@ -258,7 +259,7 @@ tfoot td.m{font-size:11px;color:var(--ink-2)}
 .strip i[data-s="covered"]{background:color-mix(in srgb,var(--good) 45%,var(--surface))}
 .strip i[data-s="open"]{background:var(--warn)}
 .strip i[data-s="due"]{background:var(--accent)}
-.strip i[data-s="future"]{background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--line)}
+.strip i[data-s="future"],.strip i[data-s="pre"]{background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--line)}
 .card-f{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px 8px;font-size:12.5px;color:var(--muted)}
 .card-f > span:last-child{white-space:nowrap}
 
@@ -429,6 +430,7 @@ dialog form{display:grid;gap:16px;padding:22px}
         <span><i class="cell" data-s="open">!</i>Em aberto</span>
         <span><i class="cell" data-s="covered">A</i>Coberto pela anuidade</span>
         <span><i class="cell" data-s="due">R</i>Renovação prevista</span>
+        <span><i class="cell" data-s="pre">–</i>Antes do início</span>
         <span><i class="cell" data-s="future"></i>Mês futuro</span>
       </div>
       <div class="table-wrap">
@@ -650,6 +652,16 @@ dialog form{display:grid;gap:16px;padding:22px}
     if (r) return r;
     return state.cobertura === "12meses" ? mesAnuidadeAnt(m) : 0;
   }
+  // Primeiro mês do ano exibido em que a madrinha já contribuía (13 = começa depois deste ano).
+  // Sem data de início, considera que ela já contribuía desde janeiro.
+  function mesInicio(m){
+    const d = parseData(m.inicio); if (!d) return 1;
+    if (d.getFullYear() < state.ano) return 1;
+    if (d.getFullYear() > state.ano) return 13;
+    return d.getMonth() + 1;
+  }
+  // Quantos meses de mensalidade eram devidos até o mês `ate` (inclusive).
+  const mesesDevidos = (m, ate) => Math.max(0, ate - mesInicio(m) + 1);
   function pendencias(m){
     if (m.situacao !== "Ativa") return 0;
     const n = mesesPassados();
@@ -658,7 +670,7 @@ dialog form{display:grid;gap:16px;padding:22px}
       return (vencimento(m) || 1) <= n ? 1 : 0;
     }
     let c = 0; const p = pagosDe(m);
-    for (let i = 1; i <= n; i++) if (!p[i]) c++;
+    for (let i = mesInicio(m); i <= n; i++) if (!p[i]) c++;
     return c;
   }
   function estadoAnual(m, mes){
@@ -678,12 +690,13 @@ dialog form{display:grid;gap:16px;padding:22px}
   }
   function estadoCelula(m, mes){
     if (pagosDe(m)[mes]) return "paid";
+    if (m.plano === "Mensal" && mes < mesInicio(m)) return "pre";
     if (m.plano === "Anual") return estadoAnual(m, mes);
     if (m.situacao !== "Ativa") return mes <= mesesPassados() ? "idle" : "future";
     return mes <= mesesPassados() ? "open" : "future";
   }
-  const ROTULO = {paid:"Pago",open:"Em aberto",covered:"Coberto pela anuidade",future:"Mês futuro",idle:"Sem cobrança",due:"Renovação prevista"};
-  const SIMBOLO = {paid:"✓",open:"!",covered:"A",future:"",idle:"",due:"R"};
+  const ROTULO = {paid:"Pago",open:"Em aberto",covered:"Coberto pela anuidade",future:"Mês futuro",idle:"Sem cobrança",due:"Renovação prevista",pre:"Antes do início da assinatura"};
+  const SIMBOLO = {paid:"✓",open:"!",covered:"A",future:"",idle:"",due:"R",pre:"–"};
   // Data em que a anuidade foi paga naquele ano. Registros antigos só guardam o mês: usa o dia 1º.
   function dataPagamento(pag, ano){
     const mes = primeiroMes(pag); if (!mes) return "";
@@ -744,9 +757,11 @@ dialog form{display:grid;gap:16px;padding:22px}
     const anuais = at.filter(m => m.plano === "Anual");
     const mrr = mensais.reduce((s,m)=>s+m.valor,0);
     const anualTotal = anuais.reduce((s,m)=>s+valorAnual(m),0);
-    const previstoAno = mrr * 12 + anualTotal;
+    // Mensalidades só contam a partir do mês de início de cada madrinha.
+    const previstoMensal = ate => mensais.reduce((s,m)=>s + m.valor * mesesDevidos(m, ate), 0);
+    const previstoAno = previstoMensal(12) + anualTotal;
     const n = mesesPassados();
-    const previstoAte = mrr * n + anuais.filter(m => n > 0 && (vencimento(m) || 1) <= n).reduce((s,m)=>s+valorAnual(m),0);
+    const previstoAte = previstoMensal(n) + anuais.filter(m => n > 0 && (vencimento(m) || 1) <= n).reduce((s,m)=>s+valorAnual(m),0);
     const recebido = state.madrinhas.reduce((s,m)=>s+totalPago(m),0);
     const pres = at.reduce((s,m)=>s+m.presentes,0);
 
@@ -754,6 +769,7 @@ dialog form{display:grid;gap:16px;padding:22px}
     $("k-mrr-d").textContent = `${plural(mensais.length,"madrinha","madrinhas")} no plano mensal · ${brl.format(previstoAno)} previstos em ${state.ano}`;
 
     const mes = n || 1;
+    const esperadoMes = mensais.filter(m => mesInicio(m) <= mes).reduce((s,m)=>s+m.valor,0);
     const atual = recebidoNoMes(mes, state.pagamentos);
     const anterior = mes > 1 ? recebidoNoMes(mes - 1, state.pagamentos) : recebidoNoMes(12, state.pagAnt);
     const nomeAnt = mes > 1 ? MESES_LONGOS[mes-2] : `dezembro de ${state.ano-1}`;
@@ -767,7 +783,7 @@ dialog form{display:grid;gap:16px;padding:22px}
       dl.className = "delta " + (pct > 0 ? "up" : pct < 0 ? "down" : "flat");
       dl.textContent = `${pct > 0 ? "▲" : pct < 0 ? "▼" : "="} ${Math.abs(pct)}% vs. ${nomeAnt}`;
     }
-    $("k-mes-d").textContent = `${brl.format(mrr)} esperados em mensalidades`;
+    $("k-mes-d").textContent = `${brl.format(esperadoMes)} esperados em mensalidades`;
 
     $("k-rec-l").textContent = `Recebido em ${state.ano}`;
     contar($("k-rec"), recebido, brl.format);
@@ -808,8 +824,9 @@ dialog form{display:grid;gap:16px;padding:22px}
   let chartMes = -1;
   function renderChart(){
     const at = ativas();
-    const mrr = at.filter(m => m.plano === "Mensal").reduce((s,m)=>s+m.valor,0);
-    const prev = Array(12).fill(mrr);
+    const mensaisAt = at.filter(m => m.plano === "Mensal");
+    const base = MESES.map((_,i) => mensaisAt.filter(m => mesInicio(m) <= i + 1).reduce((s,m)=>s+m.valor,0));
+    const prev = base.slice();
     const semMes = [];
     at.filter(m => m.plano === "Anual").forEach(m => { const v = vencimento(m); if (v) prev[v-1] += valorAnual(m); else semMes.push(m); });
     const rec = MESES.map((_,i) => recebidoNoMes(i+1, state.pagamentos));
@@ -840,7 +857,7 @@ dialog form{display:grid;gap:16px;padding:22px}
       const i = Number(r.dataset.i);
       const show = () => {
         box.querySelectorAll(".col-hl").forEach((h,k) => h.classList.toggle("on", k === i));
-        const bb = r.getBoundingClientRect(), cb = box.getBoundingClientRect(), an = prev[i] - mrr;
+        const bb = r.getBoundingClientRect(), cb = box.getBoundingClientRect(), an = prev[i] - base[i];
         const falta = Math.max(0, prev[i] - rec[i]);
         tip.innerHTML = `<b>${cap(MESES_LONGOS[i])} de ${state.ano}</b><br>Previsto: ${brl.format(prev[i])}${an ? ` <span style="opacity:.75">(inclui ${brl.format(an)} de anuidades)</span>` : ""}<br>Recebido: ${brl.format(rec[i])}${i <= cur || state.ano < hoje.getFullYear() ? `<br>Falta receber: ${brl.format(falta)}` : ""}<br><span style="opacity:.75">Clique para ver quem pagou</span>`;
         tip.style.left = Math.max(90, Math.min(cb.width-90, bb.left - cb.left + bb.width/2)) + "px";
@@ -1108,7 +1125,7 @@ dialog form{display:grid;gap:16px;padding:22px}
       <div class="stats">
         <div><b class="num">${m.plano === "Anual" ? brl.format(valorAnual(m)) : brl.format(m.valor)}</b><span>${m.plano === "Anual" ? "por ano" : "por mês"}</span></div>
         <div><b class="num">${brl.format(totalPago(m))}</b><span>pago em ${state.ano}</span></div>
-        <div><b class="num">${m.plano === "Anual" ? (mesAnuidade(m) ? "Paga" : "Pendente") : `${pagos} de ${n}`}</b><span>${m.plano === "Anual" ? `anuidade de ${state.ano}` : `meses pagos até ${n ? MESES_LONGOS[n-1] : "agora"}`}</span></div>
+        <div><b class="num">${m.plano === "Anual" ? (mesAnuidade(m) ? "Paga" : "Pendente") : `${pagos} de ${mesesDevidos(m, n)}`}</b><span>${m.plano === "Anual" ? `anuidade de ${state.ano}` : `meses pagos até ${n ? MESES_LONGOS[n-1] : "agora"}`}</span></div>
         <div><b class="num">${fim ? fmtData(fim) : "—"}</b><span>${fim ? (dias < 0 ? `venceu há ${plural(-dias,"dia","dias")}` : `fim da assinatura · ${plural(dias,"dia","dias")}`) : "sem data de fim"}</span></div>
       </div>
       <div style="display:grid;gap:8px">
@@ -1127,7 +1144,8 @@ dialog form{display:grid;gap:16px;padding:22px}
       <div style="display:grid;gap:8px">
         <span class="sec-t">Histórico</span>
         ${hist.length ? `<ul class="hist">${hist.map(h => `<li><span>${cap(MESES_LONGOS[h.mes-1])} de ${h.ano}${h.em && m.plano === "Anual" ? ` · ${fmtData(h.em)}` : ""}</span><b class="num">${brl.format(h.valor)}</b></li>`).join("")}</ul>` : `<p class="dlg-note">Nenhum pagamento registrado em ${state.ano - 1} ou ${state.ano}.</p>`}
-        ${m.inicio ? `<p class="dlg-note">Madrinha desde ${fmtData(m.inicio)}.</p>` : ""}
+        ${m.inicio ? `<p class="dlg-note">Madrinha desde ${fmtData(m.inicio)}.</p>`
+          : m.plano === "Mensal" ? `<p class="dlg-note">Sem data de início: os meses são cobrados desde janeiro. Se ela começou depois, informe a data em Editar cadastro.</p>` : ""}
       </div>
       <div class="ficha-acts">
         <button class="btn primary" type="button" data-editar="${esc(m.id)}"${ok ? "" : " disabled"}>Editar cadastro</button>
