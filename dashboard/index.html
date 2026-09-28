@@ -873,11 +873,38 @@ dialog form{display:grid;gap:16px;padding:22px}
     const f = parseData(fimEfetivo(m)); if (!f) return null;
     return Math.round((f - new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate())) / DIA);
   }
-  function recebidoNoMes(mes, pag){
-    let s = 0;
-    for (const id in pag){ const p = pag[id][mes]; if (p) s += Number(p.valor) || 0; }
+  // Anuidade reconhecida mês a mês: o valor pago é dividido em 12 parcelas, uma para cada mês coberto.
+  // Na regra de 12 meses as parcelas começam no mês do pagamento; na do calendário, vão de janeiro a dezembro.
+  function parcelasAnuais(){
+    const porMes = Array(13).fill(0), porMadrinha = {};
+    state.madrinhas.forEach(m => {
+      if (m.plano !== "Anual") return;
+      [[state.pagAnt[m.id], state.ano - 1], [state.pagamentos[m.id], state.ano]].forEach(([pag, ano]) => {
+        const mp = primeiroMes(pag); if (!mp) return;
+        const total = Number(pag[mp].valor) || 0, parcela = total / 12, em = dataPagamento(pag, ano);
+        for (let k = 0; k < 12; k++){
+          const d = state.cobertura === "calendario" ? new Date(ano, k, 1) : new Date(ano, mp - 1 + k, 1);
+          if (d.getFullYear() !== state.ano) continue;
+          const mm = d.getMonth() + 1;
+          porMes[mm] += parcela;
+          (porMadrinha[m.id] ||= {})[mm] = {valor: parcela, n: k + 1, total, em};
+        }
+      });
+    });
+    return {porMes, porMadrinha};
+  }
+  // Valor que conta no mês: mensalidades pagas no mês mais a parcela mensal das anuidades.
+  function reconhecidoNoMes(mes, parc = parcelasAnuais()){
+    let s = parc.porMes[mes];
+    state.madrinhas.forEach(m => { if (m.plano === "Mensal"){ const p = pagosDe(m)[mes]; if (p) s += Number(p.valor) || 0; } });
     return s;
   }
+  // Mesmo cálculo para dezembro do ano anterior (comparação de janeiro).
+  const reconhecidoDezAnterior = () => comAno(state.ano - 1, state.pagAnt, {}, () => reconhecidoNoMes(12));
+  // Previsto de uma madrinha no mês: a mensalidade ou 1/12 da anuidade, a partir do início.
+  const previstoNoMes = (m, mes) => mesInicio(m) <= mes ? (m.plano === "Anual" ? valorAnual(m) / 12 : m.valor) : 0;
+  const previstoMes = mes => ativas().reduce((s,m)=>s + previstoNoMes(m, mes), 0);
+  const previstoAteMes = ate => { let s = 0; for (let i = 1; i <= ate; i++) s += previstoMes(i); return s; };
   // Situação resumida de uma madrinha, usada nos cartões e na ficha.
   function resumo(m){
     if (m.situacao !== "Ativa") return {c:"neutral", t:m.situacao};
@@ -909,22 +936,21 @@ dialog form{display:grid;gap:16px;padding:22px}
     const mensais = at.filter(m => m.plano === "Mensal");
     const anuais = at.filter(m => m.plano === "Anual");
     const mrr = mensais.reduce((s,m)=>s+m.valor,0);
-    const anualTotal = anuais.reduce((s,m)=>s+valorAnual(m),0);
-    // Mensalidades só contam a partir do mês de início de cada madrinha.
-    const previstoMensal = ate => mensais.reduce((s,m)=>s + m.valor * mesesDevidos(m, ate), 0);
-    const previstoAno = previstoMensal(12) + anualTotal;
+    // Cada madrinha conta a partir do mês de início; anuidades entram em 12 parcelas mensais.
+    const previstoAno = previstoAteMes(12);
     const n = mesesPassados();
-    const previstoAte = previstoMensal(n) + anuais.filter(m => n > 0 && (vencimento(m) || 1) <= n).reduce((s,m)=>s+valorAnual(m),0);
-    const recebido = state.madrinhas.reduce((s,m)=>s+totalPago(m),0);
+    const previstoAte = previstoAteMes(n);
+    const parc = parcelasAnuais();
+    let recebido = 0; for (let i = 1; i <= n; i++) recebido += reconhecidoNoMes(i, parc);
     const pres = at.reduce((s,m)=>s+m.presentes,0);
 
     contar($("k-mrr"), mrr, brl.format);
     $("k-mrr-d").textContent = `${plural(mensais.length,"madrinha","madrinhas")} no plano mensal · ${brl.format(previstoAno)} previstos em ${state.ano}`;
 
     const mes = n || 1;
-    const esperadoMes = mensais.filter(m => mesInicio(m) <= mes).reduce((s,m)=>s+m.valor,0);
-    const atual = recebidoNoMes(mes, state.pagamentos);
-    const anterior = mes > 1 ? recebidoNoMes(mes - 1, state.pagamentos) : recebidoNoMes(12, state.pagAnt);
+    const esperadoMes = previstoMes(mes);
+    const atual = reconhecidoNoMes(mes, parc);
+    const anterior = mes > 1 ? reconhecidoNoMes(mes - 1, parc) : reconhecidoDezAnterior();
     const nomeAnt = mes > 1 ? MESES_LONGOS[mes-2] : `dezembro de ${state.ano-1}`;
     $("k-mes-l").textContent = `Recebido em ${MESES_LONGOS[mes-1]}`;
     contar($("k-mes"), atual, brl.format);
@@ -936,7 +962,7 @@ dialog form{display:grid;gap:16px;padding:22px}
       dl.className = "delta " + (pct > 0 ? "up" : pct < 0 ? "down" : "flat");
       dl.textContent = `${pct > 0 ? "▲" : pct < 0 ? "▼" : "="} ${Math.abs(pct)}% vs. ${nomeAnt}`;
     }
-    $("k-mes-d").textContent = `${brl.format(esperadoMes)} esperados em mensalidades`;
+    $("k-mes-d").textContent = `${brl.format(esperadoMes)} previstos no mês, com as parcelas das anuidades`;
 
     $("k-rec-l").textContent = `Recebido em ${state.ano}`;
     contar($("k-rec"), recebido, brl.format);
@@ -980,9 +1006,9 @@ dialog form{display:grid;gap:16px;padding:22px}
     const mensaisAt = at.filter(m => m.plano === "Mensal");
     const base = MESES.map((_,i) => mensaisAt.filter(m => mesInicio(m) <= i + 1).reduce((s,m)=>s+m.valor,0));
     const prev = base.slice();
-    const semMes = [];
-    at.filter(m => m.plano === "Anual").forEach(m => { const v = vencimento(m); if (v) prev[v-1] += valorAnual(m); else semMes.push(m); });
-    const rec = MESES.map((_,i) => recebidoNoMes(i+1, state.pagamentos));
+    MESES.forEach((_,i) => { prev[i] = previstoMes(i + 1); });
+    const parc = parcelasAnuais();
+    const rec = MESES.map((_,i) => reconhecidoNoMes(i+1, parc));
     const max = Math.max(...prev, ...rec, 1);
     const step = max > 8000 ? 4000 : max > 4000 ? 2000 : max > 2000 ? 1000 : 500;
     const top = Math.ceil(max * 1.08 / step) * step;
@@ -1027,9 +1053,7 @@ dialog form{display:grid;gap:16px;padding:22px}
       r.addEventListener("click", abrir);
       r.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " "){ e.preventDefault(); abrir(); } });
     });
-    $("chart-note").textContent = semMes.length
-      ? `O previsto inclui cada anuidade no mês de renovação. Ainda sem data: ${semMes.map(m => m.nome.trim()).join(", ")}.`
-      : "O previsto inclui cada anuidade no mês de renovação. Clique em um mês para ver quem pagou.";
+    $("chart-note").textContent = `As anuidades entram divididas em 12 parcelas iguais, ${state.cobertura === "calendario" ? "de janeiro a dezembro do ano pago" : "a partir do mês do pagamento"}. Clique em um mês para ver quem pagou.`;
   }
   function roundTop(x, y, w, h, r){
     if (h <= 0) return "";
@@ -1145,8 +1169,13 @@ dialog form{display:grid;gap:16px;padding:22px}
         <div class="pitem-f"><span class="chip ${r.c}">${esc(r.t)}</span><span class="num">Pago em ${state.ano}: ${brl.format(totalPago(m))}</span></div>
       </div>`;
     }).join("") : `<p class="empty">Nenhuma madrinha encontrada com esses filtros.</p>`;
-    const somaMes = Array(12).fill(0); let tot = 0;
-    rows.forEach(m => Object.entries(pagosDe(m)).forEach(([k,p]) => { somaMes[Number(k)-1] += Number(p.valor)||0; tot += Number(p.valor)||0; }));
+    // Rodapé: mensalidades pagas no mês mais a parcela mensal das anuidades.
+    const somaMes = Array(12).fill(0), parcT = parcelasAnuais();
+    rows.forEach(m => {
+      if (m.plano === "Anual") Object.entries(parcT.porMadrinha[m.id] || {}).forEach(([k,p]) => { somaMes[Number(k)-1] += p.valor; });
+      else Object.entries(pagosDe(m)).forEach(([k,p]) => { somaMes[Number(k)-1] += Number(p.valor)||0; });
+    });
+    const tot = somaMes.reduce((a,b)=>a+b,0);
     $("tfoot").innerHTML = `<td class="name">Total recebido (${rows.length})</td><td></td><td></td>` +
       somaMes.map((v,i) => `<td class="m num${f.mes===i+1?" focus":""}">${v ? (v >= 1000 ? (v/1000).toLocaleString("pt-BR",{maximumFractionDigits:1}) + " mil" : int.format(v)) : "–"}</td>`).join("") +
       `<td class="r num">${brl.format(tot)}</td>`;
@@ -1377,17 +1406,23 @@ dialog form{display:grid;gap:16px;padding:22px}
   // Monta os números do mês com os dados atuais. O resultado é guardado tal como está (retrato do fechamento).
   function gerarRelatorio(mes){
     const ano = state.ano, at = ativas();
-    const valorNoMes = m => m.plano === "Anual" ? valorAnual(m) : m.valor;
-    const recebido = recebidoNoMes(mes, state.pagamentos);
-    const anterior = mes > 1 ? recebidoNoMes(mes - 1, state.pagamentos) : recebidoNoMes(12, state.pagAnt);
-    const previsto = at.filter(m => m.plano === "Mensal" && mesInicio(m) <= mes).reduce((s,m)=>s+m.valor,0)
-      + at.filter(m => m.plano === "Anual" && vencimento(m) === mes).reduce((s,m)=>s+valorAnual(m),0);
-    let acumulado = 0; for (let i = 1; i <= mes; i++) acumulado += recebidoNoMes(i, state.pagamentos);
-    const previstoAte = at.filter(m => m.plano === "Mensal").reduce((s,m)=>s + m.valor * mesesDevidos(m, mes), 0)
-      + at.filter(m => m.plano === "Anual" && (vencimento(m) || 1) <= mes).reduce((s,m)=>s+valorAnual(m),0);
+    // Anuidades contam 1/12 por mês coberto, como no resto do painel.
+    const valorNoMes = m => m.plano === "Anual" ? valorAnual(m) / 12 : m.valor;
+    const parc = parcelasAnuais();
+    const recebido = reconhecidoNoMes(mes, parc);
+    const anterior = mes > 1 ? reconhecidoNoMes(mes - 1, parc) : reconhecidoDezAnterior();
+    const previsto = previstoMes(mes);
+    let acumulado = 0; for (let i = 1; i <= mes; i++) acumulado += reconhecidoNoMes(i, parc);
+    const previstoAte = previstoAteMes(mes);
     const linha = m => ({nome: m.nome.trim(), plano: m.plano, contato: m.contato || ""});
-    const pagaram = state.madrinhas.filter(m => pagosDe(m)[mes]).map(m => ({...linha(m), valor: Number(pagosDe(m)[mes].valor) || 0, em: pagosDe(m)[mes].em || ""}))
-      .sort((a,b) => a.nome.localeCompare(b.nome, "pt-BR"));
+    const pagaram = [];
+    state.madrinhas.forEach(m => {
+      if (m.plano === "Anual"){
+        const p = (parc.porMadrinha[m.id] || {})[mes];
+        if (p) pagaram.push({...linha(m), valor: p.valor, em: p.em, parcela: `${p.n}/12 de ${brl.format(p.total)}`});
+      } else if (pagosDe(m)[mes]) pagaram.push({...linha(m), valor: Number(pagosDe(m)[mes].valor) || 0, em: pagosDe(m)[mes].em || ""});
+    });
+    pagaram.sort((a,b) => a.nome.localeCompare(b.nome, "pt-BR"));
     const naoPagaram = at.filter(m => estadoCelula(m, mes) === "open").map(m => ({...linha(m), valor: valorNoMes(m)}))
       .sort((a,b) => a.nome.localeCompare(b.nome, "pt-BR"));
     const cobertas = at.filter(m => ["paid","covered"].includes(estadoCelula(m, mes)));
@@ -1450,9 +1485,9 @@ dialog form{display:grid;gap:16px;padding:22px}
       </div>
       <section class="rel-sec">
         <h3>Quem pagou <small>${plural(r.pagaram.length,"madrinha","madrinhas")} · ${brl.format(totPago)}</small></h3>
-        ${r.pagaram.length ? htmlTabela([{t:"Madrinha"},{t:"Plano"},{t:"Registrado em"},{t:"Valor",r:1}],
-          r.pagaram.map(x => `<tr><td>${esc(x.nome)}</td><td>${tagPlano(x.plano)}</td><td class="num">${fmtData(x.em) || "—"}</td><td class="r num">${brl.format(x.valor)}</td></tr>`),
-          `<td colspan="3">Total recebido</td><td class="r num">${brl.format(totPago)}</td>`) : `<p class="empty">Nenhum pagamento marcado em ${nomeMes}.</p>`}
+        ${r.pagaram.length ? htmlTabela([{t:"Madrinha"},{t:"Plano"},{t:"Pago em"},{t:"Valor no mês",r:1}],
+          r.pagaram.map(x => `<tr><td>${esc(x.nome)}</td><td>${tagPlano(x.plano)}${x.parcela ? ` <small class="hint">parcela ${esc(x.parcela)}</small>` : ""}</td><td class="num">${fmtData(x.em) || "—"}</td><td class="r num">${brl.format(x.valor)}</td></tr>`),
+          `<td colspan="3">Total no mês</td><td class="r num">${brl.format(totPago)}</td>`) : `<p class="empty">Nenhum pagamento marcado em ${nomeMes}.</p>`}
       </section>
       <section class="rel-sec">
         <h3>Quem não pagou <small>${plural(r.naoPagaram.length,"madrinha","madrinhas")} · ${brl.format(totAberto)} em aberto</small></h3>
@@ -1565,7 +1600,7 @@ dialog form{display:grid;gap:16px;padding:22px}
         let x = M;
         cols.forEach((c, i) => {
           const v = String(l[i] ?? "");
-          const anual = c.plano && v === "Anual";
+          const anual = c.plano && v.startsWith("Anual");
           const cortado = doc.splitTextToSize(v, larg[i] - 4)[0] || "";
           txt(cortado, c.r ? x + larg[i] - 2 : x + 2, y + 4.8, {s: 9, b: anual, c: anual ? AMEIXA : TINTA, a: c.r ? "right" : undefined});
           x += larg[i];
@@ -1577,8 +1612,8 @@ dialog form{display:grid;gap:16px;padding:22px}
     };
     const totPago = r.pagaram.reduce((s,x)=>s+x.valor,0), totAberto = r.naoPagaram.reduce((s,x)=>s+x.valor,0);
     tabela("Quem pagou", `${plural(r.pagaram.length,"madrinha","madrinhas")} · ${brl.format(totPago)}`,
-      [{t:"Madrinha", w:.42},{t:"Plano", w:.16, plano:1},{t:"Registrado em", w:.2},{t:"Valor", w:.22, r:1}],
-      r.pagaram.map(x => [x.nome, x.plano, fmtData(x.em) || "—", brl.format(x.valor)]), ["Total recebido", brl.format(totPago)]);
+      [{t:"Madrinha", w:.36},{t:"Plano", w:.26, plano:1},{t:"Pago em", w:.18},{t:"Valor no mês", w:.2, r:1}],
+      r.pagaram.map(x => [x.nome, x.parcela ? `Anual ${x.parcela}` : x.plano, fmtData(x.em) || "—", brl.format(x.valor)]), ["Total no mês", brl.format(totPago)]);
     tabela("Quem não pagou", `${plural(r.naoPagaram.length,"madrinha","madrinhas")} · ${brl.format(totAberto)} em aberto`,
       [{t:"Madrinha", w:.42},{t:"Plano", w:.16, plano:1},{t:"Contato", w:.22},{t:"Valor", w:.2, r:1}],
       r.naoPagaram.map(x => [x.nome, x.plano, x.contato, brl.format(x.valor)]), ["Total em aberto", brl.format(totAberto)]);
