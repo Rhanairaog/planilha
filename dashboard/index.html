@@ -203,6 +203,9 @@ dialog form{display:grid;gap:16px;padding:22px}
 .f input,.f select{height:40px;border:1px solid var(--line-strong);border-radius:9px;background:var(--surface-2);padding:0 10px}
 .dlg-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
 .dlg-note{font-size:13px;color:var(--muted)}
+.btn.danger{color:var(--bad);border-color:var(--bad);background:var(--surface);margin-right:auto}
+.btn.danger:hover{background:var(--bad-soft)}
+.btn.danger[data-confirm]{background:var(--bad);color:var(--surface)}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;box-shadow:var(--shadow);z-index:10}
 
 @media (max-width:900px){
@@ -381,6 +384,7 @@ dialog form{display:grid;gap:16px;padding:22px}
     </div>
     <p class="dlg-note" id="dlg-note"></p>
     <div class="dlg-actions">
+      <button class="btn danger" type="button" id="dlg-del" hidden>Excluir madrinha</button>
       <a class="btn" id="dlg-wa" target="_blank" rel="noopener" hidden>Abrir WhatsApp</a>
       <button class="btn" value="cancel" type="button" id="dlg-cancel">Cancelar</button>
       <button class="btn primary" id="dlg-save" type="submit">Salvar</button>
@@ -982,6 +986,9 @@ dialog form{display:grid;gap:16px;padding:22px}
     const ok = state.podeEditar && state.fonte === "db";
     ["f-nome","f-plano","f-valor","f-pres","f-sit","f-cont","f-ini","f-fim"].forEach(id => $(id).disabled = !ok);
     $("dlg-save").hidden = !ok;
+    $("dlg-del").hidden = !(ok && m);
+    delete $("dlg-del").dataset.confirm;
+    $("dlg-del").textContent = "Excluir madrinha";
     const wa = m ? linkWa(m) : "";
     $("dlg-wa").hidden = !wa; if (wa) $("dlg-wa").href = wa;
     $("dlg-note").textContent = ok ? (m && pendencias(m) ? `${pendencias(m)} ${m.plano==="Anual"?"anuidade pendente":"mês(es) em aberto"} em ${state.ano}. O botão do WhatsApp já abre com uma mensagem de lembrete.` : "")
@@ -1000,6 +1007,29 @@ dialog form{display:grid;gap:16px;padding:22px}
   });
   $("f-fim").addEventListener("input", e => e.target.setCustomValidity(""));
   $("dlg-cancel").addEventListener("click", () => $("dlg").close());
+  // Exclusão em dois cliques: o primeiro pede confirmação, o segundo apaga o cadastro e os pagamentos.
+  let delT;
+  $("dlg-del").addEventListener("click", async () => {
+    const b = $("dlg-del"), m = editando;
+    if (!m || !state.podeEditar || state.fonte !== "db") return;
+    clearTimeout(delT);
+    if (!b.dataset.confirm){
+      b.dataset.confirm = "1"; b.textContent = "Confirmar exclusão";
+      delT = setTimeout(() => { delete b.dataset.confirm; b.textContent = "Excluir madrinha"; }, 5000);
+      return;
+    }
+    $("dlg").close();
+    const nome = m.nome.trim();
+    state.madrinhas = state.madrinhas.filter(x => x.id !== m.id);
+    delete state.pagamentos[m.id]; delete state.pagAnt[m.id];
+    render();
+    try {
+      await gravar(`madrinhas/${m.id}`, ref => ref.delete());
+      const pags = await state.db.collection("pagamentos").where("madrinha","==",m.id).get();
+      for (const d of pags.docs) await gravar(`pagamentos/${d.id}`, ref => ref.delete());
+      toast(`${nome} foi excluída do painel.`);
+    } catch (e) { erroGravacao(e); }
+  });
   const slug = s => s.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,60) || "madrinha";
   $("dlg-form").addEventListener("submit", e => {
     e.preventDefault();
