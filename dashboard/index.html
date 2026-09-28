@@ -334,6 +334,8 @@ dialog form{display:grid;gap:16px;padding:22px}
   .fgrid{grid-template-columns:1fr}
   .tab{padding:0 12px}
 }
+.meio-sel{height:30px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);padding:0 6px;font-size:13px;max-width:140px}
+.meio-sel[disabled]{opacity:.7}
 /* Relatório */
 .fchip[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
 .rel-status{font-size:13.5px;color:var(--ink-2);display:flex;flex-wrap:wrap;gap:8px;align-items:center}
@@ -534,6 +536,8 @@ dialog form{display:grid;gap:16px;padding:22px}
           <select id="fp"><option value="">Todos</option><option>Mensal</option><option>Anual</option></select></div>
         <div class="field"><label for="fs">Situação</label>
           <select id="fs"><option value="Ativa">Ativas</option><option value="">Todas</option><option>Pausada</option><option>Encerrada</option></select></div>
+        <div class="field"><label for="fmeio">Meio</label>
+          <select id="fmeio"></select></div>
         <div class="field"><label for="fm">Mês</label>
           <select id="fm"></select></div>
         <label class="toggle"><input id="fo" type="checkbox">Só quem está em aberto</label>
@@ -654,7 +658,8 @@ dialog form{display:grid;gap:16px;padding:22px}
       <div class="f"><label for="f-valor">Valor (R$)</label><input id="f-valor" type="number" min="0" step="1" required></div>
       <div class="f"><label for="f-pres">Presentes</label><input id="f-pres" type="number" min="0" step="1" required></div>
       <div class="f"><label for="f-sit">Situação</label><select id="f-sit"><option>Ativa</option><option>Pausada</option><option>Encerrada</option></select></div>
-      <div class="f full"><label for="f-cont">Contato</label><input id="f-cont" maxlength="60" placeholder="(16) 99999-9999"></div>
+      <div class="f"><label for="f-cont">Contato</label><input id="f-cont" maxlength="60" placeholder="(16) 99999-9999"></div>
+      <div class="f"><label for="f-meio">Meio de pagamento</label><select id="f-meio"></select></div>
       <div class="f"><label for="f-ini">Início da assinatura</label><input id="f-ini" type="date"></div>
       <div class="f" id="f-fim-box"><label for="f-fim">Fim da assinatura</label><input id="f-fim" type="date"></div>
       <p class="dlg-note full" id="f-datas-note"></p>
@@ -723,6 +728,7 @@ dialog form{display:grid;gap:16px;padding:22px}
   const MESES_LONGOS = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
   const REGIOES = {"11":"São Paulo e Grande SP","16":"Ribeirão Preto e região","18":"Presidente Prudente e região"};
   const TABS = ["geral","pagamentos","renovacoes","madrinhas","relatorio"];
+  const MEIOS = ["Mercado Pago","PayPal","Asaas","Outro"];
   const brl = new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:0});
   const int = new Intl.NumberFormat("pt-BR");
   const $ = id => document.getElementById(id);
@@ -749,7 +755,7 @@ dialog form{display:grid;gap:16px;padding:22px}
     db: null,
     podeEditar: false,
     tab: "geral",
-    f: {q: "", plano: "", situacao: "Ativa", mes: 0, aberto: false},                               // filtros de Pagamentos
+    f: {q: "", plano: "", situacao: "Ativa", mes: 0, aberto: false, meio: ""},                     // filtros de Pagamentos
     g: {q: "", grupo: "", regiao: "", situacao: "Ativa", semFim: false, ordem: "ordem"},            // filtros de Madrinhas
     ficha: null,
     relatorios: {}, relMes: 0, relAtual: null, pagCarregado: false, relCarregado: false
@@ -1106,11 +1112,18 @@ dialog form{display:grid;gap:16px;padding:22px}
     const dq = q.replace(/\D/g,"");
     return semAcento(m.nome + " " + m.contato).includes(q) || (dq && m.contato.replace(/\D/g,"").includes(dq));
   };
+  // Meio de pagamento escolhido direto na lista (grava no cadastro da madrinha).
+  function seletorMeio(m, dis){
+    return `<select class="meio-sel" data-meio="${esc(m.id)}" aria-label="Meio de pagamento de ${esc(m.nome)}"${dis}>
+      <option value=""${!m.meio ? " selected" : ""}>Não informado</option>
+      ${MEIOS.map(x => `<option${m.meio === x ? " selected" : ""}>${x}</option>`).join("")}</select>`;
+  }
   function visiveisPag(){
     const f = state.f;
     return state.madrinhas.filter(m =>
       (!f.situacao || m.situacao === f.situacao) &&
       (!f.plano || m.plano === f.plano) &&
+      (!f.meio || (f.meio === "-" ? !m.meio : m.meio === f.meio)) &&
       (!f.aberto || (f.mes ? estadoCelula(m, f.mes) === "open" : pendencias(m) > 0)) &&
       buscaBate(m, f.q));
   }
@@ -1127,12 +1140,14 @@ dialog form{display:grid;gap:16px;padding:22px}
     if (f.mes) lista.push({k:"f.mes", t:`Mês: ${MESES_LONGOS[f.mes-1]}`});
     if (f.aberto) lista.push({k:"f.aberto", t:"Só em aberto"});
     if (f.plano) lista.push({k:"f.plano", t:`Plano ${f.plano.toLowerCase()}`});
+    if (f.meio) lista.push({k:"f.meio", t: f.meio === "-" ? "Meio não informado" : `Meio: ${f.meio}`});
     if (f.situacao !== "Ativa") lista.push({k:"f.situacao", t: f.situacao ? `Situação: ${f.situacao}` : "Todas as situações"});
     if (f.q) lista.push({k:"f.q", t:`Busca: ${f.q}`});
     chips($("chips-pag"), lista);
 
     const cur = state.ano === hoje.getFullYear() ? hoje.getMonth() : -1;
-    $("thead").innerHTML = `<th>Madrinha</th><th>Contato</th><th class="r">Valor</th>` +
+    $("fmeio").value = f.meio;
+    $("thead").innerHTML = `<th>Madrinha</th><th>Contato</th><th>Meio</th><th class="r">Valor</th>` +
       MESES.map((m,i)=>`<th class="m${i===cur?" now":""}${f.mes===i+1?" focus":""}">${m}</th>`).join("") + `<th class="r">Pago no ano</th>`;
     const rows = visiveisPag();
     const dis = state.podeEditar ? "" : " disabled";
@@ -1148,11 +1163,12 @@ dialog form{display:grid;gap:16px;padding:22px}
       return `<tr${anual ? ' class="anual"' : ""}>
         <td class="name"><button type="button" data-ficha="${esc(m.id)}">${esc(m.nome.trim())}</button>${anual ? ' <span class="tag-anual">Anual</span>' : ""}${sitChip}<small>${anual ? "" : esc(m.plano) + " · "}${plural(m.presentes,"presente","presentes")}${fim ? ` · até ${fmtData(fim)}` : ""}</small></td>
         <td><span class="contact">${esc(m.contato)}${wa ? `<a class="wa" href="${wa}" target="_blank" rel="noopener" title="Enviar mensagem pelo WhatsApp" aria-label="WhatsApp de ${esc(m.nome)}">${WA_ICON}</a>` : ""}</span></td>
+        <td>${seletorMeio(m, dis)}</td>
         <td class="r num">${m.plano==="Anual" ? brl.format(valorAnual(m)) + "<small style='color:var(--muted)'>/ano</small>" : brl.format(m.valor)}</td>
         ${cells}
         <td class="r num">${brl.format(totalPago(m))}<br>${pendChip}</td>
       </tr>`;
-    }).join("") : `<tr><td colspan="16" class="empty">Nenhuma madrinha encontrada com esses filtros.</td></tr>`;
+    }).join("") : `<tr><td colspan="17" class="empty">Nenhuma madrinha encontrada com esses filtros.</td></tr>`;
     $("plist").innerHTML = rows.length ? rows.map(m => {
       const wa = linkWa(m), r = resumo(m), anual = m.plano === "Anual";
       const cells = MESES.map((mm,i) => {
@@ -1162,7 +1178,8 @@ dialog form{display:grid;gap:16px;padding:22px}
       return `<div class="pitem${anual ? " anual" : ""}">
         <div class="pitem-h">
           <span><button class="link-name" type="button" data-ficha="${esc(m.id)}">${esc(m.nome.trim())}</button>${anual ? ' <span class="tag-anual">Anual</span>' : ""}
-            <small>${anual ? brl.format(valorAnual(m)) + "/ano" : brl.format(m.valor) + "/mês"} · ${esc(m.contato)}</small></span>
+            <small>${anual ? brl.format(valorAnual(m)) + "/ano" : brl.format(m.valor) + "/mês"} · ${esc(m.contato)}</small>
+            <span style="display:block;margin-top:6px">${seletorMeio(m, dis)}</span></span>
           ${wa ? `<a class="wa" href="${wa}" target="_blank" rel="noopener" aria-label="WhatsApp de ${esc(m.nome)}">${WA_ICON}</a>` : ""}
         </div>
         <div class="months">${cells}</div>
@@ -1176,7 +1193,7 @@ dialog form{display:grid;gap:16px;padding:22px}
       else Object.entries(pagosDe(m)).forEach(([k,p]) => { somaMes[Number(k)-1] += Number(p.valor)||0; });
     });
     const tot = somaMes.reduce((a,b)=>a+b,0);
-    $("tfoot").innerHTML = `<td class="name">Total recebido (${rows.length})</td><td></td><td></td>` +
+    $("tfoot").innerHTML = `<td class="name">Total recebido (${rows.length})</td><td></td><td></td><td></td>` +
       somaMes.map((v,i) => `<td class="m num${f.mes===i+1?" focus":""}">${v ? (v >= 1000 ? (v/1000).toLocaleString("pt-BR",{maximumFractionDigits:1}) + " mil" : int.format(v)) : "–"}</td>`).join("") +
       `<td class="r num">${brl.format(tot)}</td>`;
   }
@@ -1320,7 +1337,7 @@ dialog form{display:grid;gap:16px;padding:22px}
             <span><b>${esc(m.nome.trim())}</b><small>${m.plano === "Anual" ? '<span class="tag-anual">Anual</span>' : esc(m.plano)} · ${m.plano === "Anual" ? brl.format(valorAnual(m)) + "/ano" : brl.format(m.valor) + "/mês"}</small></span></span>
         </span>
         <span class="strip" aria-label="Pagamentos de ${state.ano}">${strip}</span>
-        <span class="card-f"><span class="chip ${r.c}">${esc(r.t)}</span><span>${fim ? (m.plano === "Mensal" ? "pago até " : "até ") + fmtData(fim) : "sem data de início"}</span></span>
+        <span class="card-f"><span class="chip ${r.c}">${esc(r.t)}</span>${m.meio ? `<span class="chip neutral">${esc(m.meio)}</span>` : ""}<span>${fim ? (m.plano === "Mensal" ? "pago até " : "até ") + fmtData(fim) : "sem data de início"}</span></span>
       </button>`;
     }).join("") : `<p class="empty" style="grid-column:1/-1">Nenhuma madrinha encontrada com esses filtros.</p>`;
   }
@@ -1369,6 +1386,7 @@ dialog form{display:grid;gap:16px;padding:22px}
         <span class="sec-t">Contato</span>
         <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
           <span class="num" style="font-size:16px;font-weight:600">${esc(m.contato || "—")}</span>
+          <span class="chip neutral">${m.meio ? "Paga por " + esc(m.meio) : "Meio de pagamento não informado"}</span>
           <button class="btn sm" type="button" id="fi-copy">Copiar</button>
           ${wa ? `<a class="btn sm" href="${wa}" target="_blank" rel="noopener"><span class="wa" style="width:18px;height:18px">${WA_ICON}</span>${pendencias(m) ? "Lembrar pagamento" : "WhatsApp"}</a>` : ""}
           ${waRen && acabando(m) ? `<a class="btn sm" href="${waRen}" target="_blank" rel="noopener">Convidar para renovar</a>` : ""}
@@ -1414,7 +1432,7 @@ dialog form{display:grid;gap:16px;padding:22px}
     const previsto = previstoMes(mes);
     let acumulado = 0; for (let i = 1; i <= mes; i++) acumulado += reconhecidoNoMes(i, parc);
     const previstoAte = previstoAteMes(mes);
-    const linha = m => ({nome: m.nome.trim(), plano: m.plano, contato: m.contato || ""});
+    const linha = m => ({nome: m.nome.trim(), plano: m.plano, contato: m.contato || "", meio: m.meio || ""});
     const pagaram = [];
     state.madrinhas.forEach(m => {
       if (m.plano === "Anual"){
@@ -1441,6 +1459,13 @@ dialog form{display:grid;gap:16px;padding:22px}
       ativas: at.length, pagaram, naoPagaram, entraram, renovaram, sairam};
   }
 
+  // Soma do mês por meio de pagamento (Mercado Pago, PayPal…), para bater com cada extrato.
+  function porMeio(itens){
+    if (!itens.length) return "";
+    const t = {};
+    itens.forEach(x => { const k = x.meio || "Não informado"; t[k] = (t[k] || 0) + x.valor; });
+    return `<div class="fchips">${Object.entries(t).sort((a,b)=>b[1]-a[1]).map(([k,v]) => `<span class="chip neutral" style="font-size:12.5px;padding:4px 10px">${esc(k)}: ${brl.format(v)}</span>`).join("")}</div>`;
+  }
   function htmlTabela(cab, linhas, rodape){
     return `<div class="table-wrap rel-tab"><table><thead><tr>${cab.map(c => `<th${c.r ? ' class="r"' : ""}>${c.t}</th>`).join("")}</tr></thead>
       <tbody>${linhas.join("")}</tbody>${rodape ? `<tfoot><tr>${rodape}</tr></tfoot>` : ""}</table></div>`;
@@ -1485,15 +1510,16 @@ dialog form{display:grid;gap:16px;padding:22px}
       </div>
       <section class="rel-sec">
         <h3>Quem pagou <small>${plural(r.pagaram.length,"madrinha","madrinhas")} · ${brl.format(totPago)}</small></h3>
-        ${r.pagaram.length ? htmlTabela([{t:"Madrinha"},{t:"Plano"},{t:"Pago em"},{t:"Valor no mês",r:1}],
-          r.pagaram.map(x => `<tr><td>${esc(x.nome)}</td><td>${tagPlano(x.plano)}${x.parcela ? ` <small class="hint">parcela ${esc(x.parcela)}</small>` : ""}</td><td class="num">${fmtData(x.em) || "—"}</td><td class="r num">${brl.format(x.valor)}</td></tr>`),
-          `<td colspan="3">Total no mês</td><td class="r num">${brl.format(totPago)}</td>`) : `<p class="empty">Nenhum pagamento marcado em ${nomeMes}.</p>`}
+        ${porMeio(r.pagaram)}
+        ${r.pagaram.length ? htmlTabela([{t:"Madrinha"},{t:"Plano"},{t:"Meio"},{t:"Pago em"},{t:"Valor no mês",r:1}],
+          r.pagaram.map(x => `<tr><td>${esc(x.nome)}</td><td>${tagPlano(x.plano)}${x.parcela ? ` <small class="hint">parcela ${esc(x.parcela)}</small>` : ""}</td><td>${esc(x.meio || "—")}</td><td class="num">${fmtData(x.em) || "—"}</td><td class="r num">${brl.format(x.valor)}</td></tr>`),
+          `<td colspan="4">Total no mês</td><td class="r num">${brl.format(totPago)}</td>`) : `<p class="empty">Nenhum pagamento marcado em ${nomeMes}.</p>`}
       </section>
       <section class="rel-sec">
         <h3>Quem não pagou <small>${plural(r.naoPagaram.length,"madrinha","madrinhas")} · ${brl.format(totAberto)} em aberto</small></h3>
-        ${r.naoPagaram.length ? htmlTabela([{t:"Madrinha"},{t:"Plano"},{t:"Contato"},{t:"Valor",r:1}],
-          r.naoPagaram.map(x => `<tr><td>${esc(x.nome)}</td><td>${tagPlano(x.plano)}</td><td class="num">${esc(x.contato)}</td><td class="r num">${brl.format(x.valor)}</td></tr>`),
-          `<td colspan="3">Total em aberto</td><td class="r num">${brl.format(totAberto)}</td>`) : `<p class="empty">Todas as madrinhas com cobrança em ${nomeMes} pagaram.</p>`}
+        ${r.naoPagaram.length ? htmlTabela([{t:"Madrinha"},{t:"Plano"},{t:"Meio"},{t:"Contato"},{t:"Valor",r:1}],
+          r.naoPagaram.map(x => `<tr><td>${esc(x.nome)}</td><td>${tagPlano(x.plano)}</td><td>${esc(x.meio || "—")}</td><td class="num">${esc(x.contato)}</td><td class="r num">${brl.format(x.valor)}</td></tr>`),
+          `<td colspan="4">Total em aberto</td><td class="r num">${brl.format(totAberto)}</td>`) : `<p class="empty">Todas as madrinhas com cobrança em ${nomeMes} pagaram.</p>`}
       </section>
       <section class="rel-sec">
         <h3>Movimento das madrinhas</h3>
@@ -1612,11 +1638,16 @@ dialog form{display:grid;gap:16px;padding:22px}
     };
     const totPago = r.pagaram.reduce((s,x)=>s+x.valor,0), totAberto = r.naoPagaram.reduce((s,x)=>s+x.valor,0);
     tabela("Quem pagou", `${plural(r.pagaram.length,"madrinha","madrinhas")} · ${brl.format(totPago)}`,
-      [{t:"Madrinha", w:.36},{t:"Plano", w:.26, plano:1},{t:"Pago em", w:.18},{t:"Valor no mês", w:.2, r:1}],
-      r.pagaram.map(x => [x.nome, x.parcela ? `Anual ${x.parcela}` : x.plano, fmtData(x.em) || "—", brl.format(x.valor)]), ["Total no mês", brl.format(totPago)]);
+      [{t:"Madrinha", w:.3},{t:"Plano", w:.2, plano:1},{t:"Meio", w:.18},{t:"Pago em", w:.14},{t:"Valor no mês", w:.18, r:1}],
+      r.pagaram.map(x => [x.nome, x.parcela ? `Anual ${x.parcela.split(" de ")[0]}` : x.plano, x.meio || "—", fmtData(x.em) || "—", brl.format(x.valor)]), ["Total no mês", brl.format(totPago)]);
+    if (r.pagaram.length){
+      const t = {}; r.pagaram.forEach(x => { const k = x.meio || "Não informado"; t[k] = (t[k] || 0) + x.valor; });
+      const linhaMeio = "Por meio de pagamento: " + Object.entries(t).sort((a,b)=>b[1]-a[1]).map(([k,v]) => `${k} ${brl.format(v)}`).join(" · ");
+      y -= 3; quebra(8); txt(doc.splitTextToSize(linhaMeio, W - 2 * M)[0], M, y, {s: 9, c: CINZA}); y += 9;
+    }
     tabela("Quem não pagou", `${plural(r.naoPagaram.length,"madrinha","madrinhas")} · ${brl.format(totAberto)} em aberto`,
-      [{t:"Madrinha", w:.42},{t:"Plano", w:.16, plano:1},{t:"Contato", w:.22},{t:"Valor", w:.2, r:1}],
-      r.naoPagaram.map(x => [x.nome, x.plano, x.contato, brl.format(x.valor)]), ["Total em aberto", brl.format(totAberto)]);
+      [{t:"Madrinha", w:.32},{t:"Plano", w:.12, plano:1},{t:"Meio", w:.16},{t:"Contato", w:.22},{t:"Valor", w:.18, r:1}],
+      r.naoPagaram.map(x => [x.nome, x.plano, x.meio || "—", x.contato, brl.format(x.valor)]), ["Total em aberto", brl.format(totAberto)]);
     const movs = [
       ["Entraram", r.entraram.map(x => `${x.nome} · ${brl.format(x.valor)}${x.plano === "Anual" ? "/ano" : "/mês"} · desde ${fmtData(x.data)}`)],
       ["Renovaram", r.renovaram.map(x => `${x.nome} · ${brl.format(x.valor)} · ${fmtData(x.data)}`)],
@@ -1708,6 +1739,9 @@ dialog form{display:grid;gap:16px;padding:22px}
   $("fp").addEventListener("change", e => { state.f.plano = e.target.value; renderPagamentos(); });
   $("fs").addEventListener("change", e => { state.f.situacao = e.target.value; renderPagamentos(); });
   $("fm").addEventListener("change", e => { state.f.mes = Number(e.target.value); renderPagamentos(); });
+  $("fmeio").innerHTML = `<option value="">Todos</option>` + MEIOS.map(x => `<option>${x}</option>`).join("") + `<option value="-">Não informado</option>`;
+  $("fmeio").addEventListener("change", e => { state.f.meio = e.target.value; renderPagamentos(); });
+  $("f-meio").innerHTML = `<option value="">Não informado</option>` + MEIOS.map(x => `<option>${x}</option>`).join("");
   $("fo").addEventListener("change", e => { state.f.aberto = e.target.checked; renderPagamentos(); });
   $("gq").addEventListener("input", debounce(e => { state.g.q = e.target.value; renderMadrinhas(); }, 120));
   $("gp").addEventListener("change", e => { state.g.grupo = e.target.value; renderMadrinhas(); });
@@ -1716,7 +1750,7 @@ dialog form{display:grid;gap:16px;padding:22px}
   $("go").addEventListener("change", e => { state.g.ordem = e.target.value; renderMadrinhas(); });
   $("gf").addEventListener("change", e => { state.g.semFim = e.target.checked; renderMadrinhas(); });
 
-  const PADRAO = {f: {q: "", plano: "", situacao: "Ativa", mes: 0, aberto: false}, g: {q: "", grupo: "", regiao: "", situacao: "Ativa", semFim: false, ordem: "ordem"}};
+  const PADRAO = {f: {q: "", plano: "", situacao: "Ativa", mes: 0, aberto: false, meio: ""}, g: {q: "", grupo: "", regiao: "", situacao: "Ativa", semFim: false, ordem: "ordem"}};
   function limpar(chave){
     if (chave === "*chips-pag") state.f = {...PADRAO.f};
     else if (chave === "*chips-mad") state.g = {...PADRAO.g, ordem: state.g.ordem};
@@ -1797,6 +1831,13 @@ dialog form{display:grid;gap:16px;padding:22px}
     }
   });
 
+  document.addEventListener("change", e => {
+    const s = e.target.closest("select[data-meio]");
+    if (!s || !podeGravar()) return;
+    const m = state.madrinhas.find(x => x.id === s.dataset.meio); if (!m) return;
+    salvarMadrinha(m, {meio: s.value}, `${m.nome.trim()}: ${s.value ? "paga por " + s.value : "meio de pagamento removido"}.`);
+  });
+
   document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => {
     if (!podeGravar() || state.cobertura === b.dataset.cob) return;
     state.cobertura = b.dataset.cob; render();
@@ -1869,12 +1910,13 @@ dialog form{display:grid;gap:16px;padding:22px}
     $("f-pres").value = m ? m.presentes : 1;
     $("f-sit").value = m ? m.situacao : "Ativa";
     $("f-cont").value = m ? m.contato : "";
+    $("f-meio").value = m ? (m.meio || "") : "";
     const ini = m ? (m.inicio || "") : isoData(hoje);
     $("f-ini").value = ini;
     $("f-fim").value = m ? (m.fim || "") : ($("f-plano").value === "Anual" ? fimPadrao(ini) : "");
     $("f-fim").setCustomValidity("");
     const ok = podeGravar();
-    ["f-nome","f-plano","f-valor","f-pres","f-sit","f-cont","f-ini","f-fim"].forEach(id => $(id).disabled = !ok);
+    ["f-nome","f-plano","f-valor","f-pres","f-sit","f-cont","f-meio","f-ini","f-fim"].forEach(id => $(id).disabled = !ok);
     $("dlg-save").hidden = !ok;
     $("dlg-del").hidden = !(ok && m);
     delete $("dlg-del").dataset.confirm;
@@ -1940,7 +1982,7 @@ dialog form{display:grid;gap:16px;padding:22px}
     if (!editando && state.madrinhas.some(m => m.id === id)) id += "-" + Math.random().toString(36).slice(2,6);
     const ordem = editando ? editando.ordem : Math.max(-1, ...state.madrinhas.map(m => m.ordem ?? 0)) + 1;
     const {id: _id, ...extras} = editando || {};
-    const doc = {...extras, nome, plano: $("f-plano").value, valor, presentes, situacao: $("f-sit").value, contato: $("f-cont").value.trim(), ordem, inicio, fim};
+    const doc = {...extras, nome, plano: $("f-plano").value, valor, presentes, situacao: $("f-sit").value, contato: $("f-cont").value.trim(), meio: $("f-meio").value, ordem, inicio, fim};
     // Guarda quando a situação mudou, para o movimento do relatório mensal.
     if (!editando || editando.situacao !== doc.situacao) doc.situacaoEm = isoData(hoje);
     if (doc.plano === "Anual" && !Number(doc.mesRenovacao) && parseData(inicio)) doc.mesRenovacao = parseData(inicio).getMonth() + 1;
