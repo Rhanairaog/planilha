@@ -342,6 +342,11 @@ dialog form{display:grid;gap:16px;padding:22px}
 .ex-info{display:grid;gap:4px;font-size:13px;color:var(--ink-2)}
 .ex-info b{font-weight:600;color:var(--ink)}
 .ex-acts{display:flex;flex-wrap:wrap;gap:6px}
+.btn.parou{height:28px;padding:0 10px;font-size:12.5px;color:var(--bad);border-color:color-mix(in srgb,var(--bad) 45%,var(--line))}
+.btn.parou:hover{background:var(--bad-soft)}
+.toast{display:flex;align-items:center;gap:14px}
+.toast-btn{background:none;border:0;color:inherit;font-weight:700;text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:0}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 /* Relatório */
 .fchip[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
 .rel-status{font-size:13.5px;color:var(--ink-2);display:flex;flex-wrap:wrap;gap:8px;align-items:center}
@@ -1163,6 +1168,8 @@ dialog form{display:grid;gap:16px;padding:22px}
       <option value=""${!m.meio ? " selected" : ""}>Não informado</option>
       ${MEIOS.map(x => `<option${m.meio === x ? " selected" : ""}>${x}</option>`).join("")}</select>`;
   }
+  // Atalho da lista de pagamentos: marca que a madrinha parou e a leva para Ex-madrinhas.
+  const botaoParou = (m, dis) => `<button class="btn sm parou" type="button" data-parou="${esc(m.id)}" title="Parou de contribuir: mover para Ex-madrinhas"${dis}>Parou</button>`;
   function visiveisPag(){
     const f = state.f;
     return state.madrinhas.filter(m =>
@@ -1193,7 +1200,7 @@ dialog form{display:grid;gap:16px;padding:22px}
     const cur = state.ano === hoje.getFullYear() ? hoje.getMonth() : -1;
     $("fmeio").value = f.meio;
     $("thead").innerHTML = `<th>Madrinha</th><th>Contato</th><th>Meio</th><th class="r">Valor</th>` +
-      MESES.map((m,i)=>`<th class="m${i===cur?" now":""}${f.mes===i+1?" focus":""}">${m}</th>`).join("") + `<th class="r">Pago no ano</th>`;
+      MESES.map((m,i)=>`<th class="m${i===cur?" now":""}${f.mes===i+1?" focus":""}">${m}</th>`).join("") + `<th class="r">Pago no ano</th><th><span class="sr">Ações</span></th>`;
     const rows = visiveisPag();
     const dis = state.podeEditar ? "" : " disabled";
     $("tbody").innerHTML = rows.length ? rows.map(m => {
@@ -1212,8 +1219,9 @@ dialog form{display:grid;gap:16px;padding:22px}
         <td class="r num">${m.plano==="Anual" ? brl.format(valorAnual(m)) + "<small style='color:var(--muted)'>/ano</small>" : brl.format(m.valor)}</td>
         ${cells}
         <td class="r num">${brl.format(totalPago(m))}<br>${pendChip}</td>
+        <td>${m.situacao !== "Encerrada" ? botaoParou(m, dis) : ""}</td>
       </tr>`;
-    }).join("") : `<tr><td colspan="17" class="empty">Nenhuma madrinha encontrada com esses filtros.</td></tr>`;
+    }).join("") : `<tr><td colspan="18" class="empty">Nenhuma madrinha encontrada com esses filtros.</td></tr>`;
     $("plist").innerHTML = rows.length ? rows.map(m => {
       const wa = linkWa(m), r = resumo(m), anual = m.plano === "Anual";
       const cells = MESES.map((mm,i) => {
@@ -1228,7 +1236,7 @@ dialog form{display:grid;gap:16px;padding:22px}
           ${wa ? `<a class="wa" href="${wa}" target="_blank" rel="noopener" aria-label="WhatsApp de ${esc(m.nome)}">${WA_ICON}</a>` : ""}
         </div>
         <div class="months">${cells}</div>
-        <div class="pitem-f"><span class="chip ${r.c}">${esc(r.t)}</span><span class="num">Pago em ${state.ano}: ${brl.format(totalPago(m))}</span></div>
+        <div class="pitem-f"><span class="chip ${r.c}">${esc(r.t)}</span><span class="num">Pago em ${state.ano}: ${brl.format(totalPago(m))}</span>${m.situacao !== "Encerrada" ? botaoParou(m, dis) : ""}</div>
       </div>`;
     }).join("") : `<p class="empty">Nenhuma madrinha encontrada com esses filtros.</p>`;
     // Rodapé: mensalidades pagas no mês mais a parcela mensal das anuidades.
@@ -1240,7 +1248,7 @@ dialog form{display:grid;gap:16px;padding:22px}
     const tot = somaMes.reduce((a,b)=>a+b,0);
     $("tfoot").innerHTML = `<td class="name">Total recebido (${rows.length})</td><td></td><td></td><td></td>` +
       somaMes.map((v,i) => `<td class="m num${f.mes===i+1?" focus":""}">${v ? (v >= 1000 ? (v/1000).toLocaleString("pt-BR",{maximumFractionDigits:1}) + " mil" : int.format(v)) : "–"}</td>`).join("") +
-      `<td class="r num">${brl.format(tot)}</td>`;
+      `<td class="r num">${brl.format(tot)}</td><td></td>`;
   }
 
   // ---------- Renovações ----------
@@ -1830,7 +1838,16 @@ dialog form{display:grid;gap:16px;padding:22px}
 
   // ---------- Interações ----------
   let toastT;
-  function toast(msg){ const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(()=>t.hidden = true, 2800); }
+  // Aviso rápido; com `acao`, mostra um botão (ex.: Desfazer) e fica mais tempo na tela.
+  function toast(msg, acao){
+    const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastT);
+    if (acao){
+      const b = document.createElement("button"); b.type = "button"; b.className = "toast-btn"; b.textContent = acao.rotulo;
+      b.onclick = () => { t.hidden = true; clearTimeout(toastT); acao.fn(); };
+      t.appendChild(b);
+    }
+    toastT = setTimeout(() => t.hidden = true, acao ? 7000 : 2800);
+  }
   function debounce(fn, ms){ let t; return (...a) => { clearTimeout(t); t = setTimeout(()=>fn(...a), ms); }; }
 
   document.querySelector(".tabs").addEventListener("click", e => { const b = e.target.closest("[data-tab]"); if (b) irPara(b.dataset.tab); });
@@ -1972,6 +1989,8 @@ dialog form{display:grid;gap:16px;padding:22px}
     const gr = e.target.closest("[data-grupo]"); if (gr){ state.g = {...PADRAO.g, grupo: gr.dataset.grupo}; irPara("madrinhas"); return; }
     const rg = e.target.closest("[data-regiao]"); if (rg){ state.g = {...PADRAO.g, regiao: rg.dataset.regiao}; irPara("madrinhas"); return; }
     const lp = e.target.closest("[data-limpar]"); if (lp){ limpar(lp.dataset.limpar); return; }
+    const pa = e.target.closest("[data-parou]");
+    if (pa){ if (!pa.disabled){ const m = state.madrinhas.find(x => x.id === pa.dataset.parou); if (m) abrirSaida(m, "Parou de contribuir"); } return; }
     const fi = e.target.closest("[data-ficha]"); if (fi){ abrirFicha(fi.dataset.ficha); return; }
     const ed = e.target.closest("[data-editar]");
     if (ed && !ed.disabled){ abrirDialogo(state.madrinhas.find(x => x.id === ed.dataset.editar)); return; }
@@ -2047,12 +2066,12 @@ dialog form{display:grid;gap:16px;padding:22px}
   });
   // Saída: a madrinha vira ex-madrinha, com data e motivo. Nada é apagado.
   let saindo = null;
-  function abrirSaida(m){
+  function abrirSaida(m, motivo){
     if (!podeGravar()) return;
     saindo = m;
     $("saida-nome").textContent = m.nome.trim();
     $("s-data").value = isoData(hoje); $("s-data").max = isoData(hoje);
-    $("s-motivo").value = MOTIVOS[0]; $("s-obs").value = "";
+    $("s-motivo").value = motivo || MOTIVOS[0]; $("s-obs").value = "";
     $("dlg-saida").showModal();
   }
   $("s-motivo").innerHTML = MOTIVOS.map(x => `<option>${x}</option>`).join("");
@@ -2061,8 +2080,12 @@ dialog form{display:grid;gap:16px;padding:22px}
     e.preventDefault();
     const m = saindo; if (!m || !parseData($("s-data").value)) return;
     $("dlg-saida").close(); if ($("ficha").open) $("ficha").close();
-    salvarMadrinha(m, {situacao: "Encerrada", situacaoEm: $("s-data").value, motivoSaida: $("s-motivo").value, obsSaida: $("s-obs").value.trim()},
-      `${m.nome.trim()} foi para Ex-madrinhas.`);
+    const antes = {situacao: m.situacao, situacaoEm: m.situacaoEm || "", motivoSaida: m.motivoSaida || "", obsSaida: m.obsSaida || ""};
+    salvarMadrinha(m, {situacao: "Encerrada", situacaoEm: $("s-data").value, motivoSaida: $("s-motivo").value, obsSaida: $("s-obs").value.trim()})
+      .then(() => toast(`${m.nome.trim()} foi para Ex-madrinhas.`, {rotulo: "Desfazer", fn: () => {
+        const atual = state.madrinhas.find(x => x.id === m.id);
+        if (atual) salvarMadrinha(atual, antes, `${m.nome.trim()} voltou para a lista.`);
+      }}));
   });
   // Exclusão definitiva (só pela aba Ex-madrinhas): apaga o cadastro e os pagamentos.
   async function excluirDeVez(m){
