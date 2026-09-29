@@ -214,7 +214,7 @@ td.m{padding:4px 3px;text-align:center}
 .cell[data-s="paid"]{background:var(--good);color:var(--surface);border-color:var(--good)}
 .cell[data-s="covered"]{background:var(--good-soft);color:var(--good);cursor:default}
 .cell[data-s="due"]{border:1.5px solid var(--accent);color:var(--accent);background:var(--accent-soft)}
-.cell[data-s="pre"]{border:1px dotted var(--line-strong);color:var(--muted);background:repeating-linear-gradient(135deg,transparent 0 4px,var(--surface-2) 4px 8px)}
+.cell[data-s="pre"],.cell[data-s="out"]{border:1px dotted var(--line-strong);color:var(--muted);background:repeating-linear-gradient(135deg,transparent 0 4px,var(--surface-2) 4px 8px)}
 .cell:not([disabled]):hover{box-shadow:0 0 0 2px var(--accent);transform:scale(1.06)}
 .cell[disabled]{cursor:default}
 .cell.pop{animation:pop .35s ease-out}
@@ -262,7 +262,7 @@ tfoot td.m{font-size:11px;color:var(--ink-2)}
 .strip i[data-s="covered"]{background:color-mix(in srgb,var(--good) 45%,var(--surface))}
 .strip i[data-s="open"]{background:var(--warn)}
 .strip i[data-s="due"]{background:var(--accent)}
-.strip i[data-s="future"],.strip i[data-s="pre"]{background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--line)}
+.strip i[data-s="future"],.strip i[data-s="pre"],.strip i[data-s="out"]{background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--line)}
 .card-f{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px 8px;font-size:12.5px;color:var(--muted)}
 .card-f > span:last-child{white-space:nowrap}
 
@@ -865,30 +865,38 @@ dialog form{display:grid;gap:16px;padding:22px}
     for (let i = mesInicio(m); i <= n; i++) if (!p[i]) c++;
     return c;
   }
+  // A madrinha conta no mês (ano, mes) se está ativa, ou se saiu depois dele.
+  // Quem saiu em abril conta até março: o mês da saída e os seguintes ficam de fora.
+  function contaNoMes(m, ano, mes){
+    if (m.situacao === "Ativa") return true;
+    const d = parseData(m.situacaoEm); if (!d) return false;
+    return ano < d.getFullYear() || (ano === d.getFullYear() && mes < d.getMonth() + 1);
+  }
+  const ativaNoMes = (m, mes) => mesInicio(m) <= mes && contaNoMes(m, state.ano, mes);
   function estadoAnual(m, mes){
     const n = mesesPassados(), pago = mesAnuidade(m), ant = mesAnuidadeAnt(m), venc = vencimento(m);
-    const passado = mes <= n, ativa = m.situacao === "Ativa";
+    const passado = mes <= n;
     if (state.cobertura === "calendario"){
       if (pago) return "covered";
     } else {
       if (pago && mes > pago) return "covered";
       if (ant && mes < ant) return "covered";
     }
-    if (ativa && !pago){
+    if (!pago){
       if (venc && mes === venc) return passado ? "open" : "due";
       if (!venc && mes === n) return "open";
     }
     return passado ? "idle" : "future";
   }
   function estadoCelula(m, mes){
+    if (!contaNoMes(m, state.ano, mes)) return "out";
     if (pagosDe(m)[mes]) return "paid";
     if (m.plano === "Mensal" && mes < mesInicio(m)) return "pre";
     if (m.plano === "Anual") return estadoAnual(m, mes);
-    if (m.situacao !== "Ativa") return mes <= mesesPassados() ? "idle" : "future";
     return mes <= mesesPassados() ? "open" : "future";
   }
-  const ROTULO = {paid:"Pago",open:"Em aberto",covered:"Coberto pela anuidade",future:"Mês futuro",idle:"Sem cobrança",due:"Renovação prevista",pre:"Antes do início da assinatura"};
-  const SIMBOLO = {paid:"✓",open:"!",covered:"A",future:"",idle:"",due:"R",pre:"–"};
+  const ROTULO = {out:"Depois da saída",paid:"Pago",open:"Em aberto",covered:"Coberto pela anuidade",future:"Mês futuro",idle:"Sem cobrança",due:"Renovação prevista",pre:"Antes do início da assinatura"};
+  const SIMBOLO = {out:"–",paid:"✓",open:"!",covered:"A",future:"",idle:"",due:"R",pre:"–"};
   // Data em que a anuidade foi paga naquele ano. Registros antigos só guardam o mês: usa o dia 1º.
   function dataPagamento(pag, ano){
     const mes = primeiroMes(pag); if (!mes) return "";
@@ -940,7 +948,7 @@ dialog form{display:grid;gap:16px;padding:22px}
         const total = Number(pag[mp].valor) || 0, parcela = total / 12, em = dataPagamento(pag, ano);
         for (let k = 0; k < 12; k++){
           const d = state.cobertura === "calendario" ? new Date(ano, k, 1) : new Date(ano, mp - 1 + k, 1);
-          if (d.getFullYear() !== state.ano) continue;
+          if (d.getFullYear() !== state.ano || !contaNoMes(m, state.ano, d.getMonth() + 1)) continue;
           const mm = d.getMonth() + 1;
           porMes[mm] += parcela;
           (porMadrinha[m.id] ||= {})[mm] = {valor: parcela, n: k + 1, total, em};
@@ -952,14 +960,14 @@ dialog form{display:grid;gap:16px;padding:22px}
   // Valor que conta no mês: mensalidades pagas no mês mais a parcela mensal das anuidades.
   function reconhecidoNoMes(mes, parc = parcelasAnuais()){
     let s = parc.porMes[mes];
-    state.madrinhas.forEach(m => { if (m.plano === "Mensal"){ const p = pagosDe(m)[mes]; if (p) s += Number(p.valor) || 0; } });
+    state.madrinhas.forEach(m => { if (m.plano === "Mensal" && contaNoMes(m, state.ano, mes)){ const p = pagosDe(m)[mes]; if (p) s += Number(p.valor) || 0; } });
     return s;
   }
   // Mesmo cálculo para dezembro do ano anterior (comparação de janeiro).
   const reconhecidoDezAnterior = () => comAno(state.ano - 1, state.pagAnt, {}, () => reconhecidoNoMes(12));
   // Previsto de uma madrinha no mês: a mensalidade ou 1/12 da anuidade, a partir do início.
-  const previstoNoMes = (m, mes) => mesInicio(m) <= mes ? (m.plano === "Anual" ? valorAnual(m) / 12 : m.valor) : 0;
-  const previstoMes = mes => ativas().reduce((s,m)=>s + previstoNoMes(m, mes), 0);
+  const previstoNoMes = (m, mes) => ativaNoMes(m, mes) ? (m.plano === "Anual" ? valorAnual(m) / 12 : m.valor) : 0;
+  const previstoMes = mes => state.madrinhas.reduce((s,m)=>s + previstoNoMes(m, mes), 0);
   const previstoAteMes = ate => { let s = 0; for (let i = 1; i <= ate; i++) s += previstoMes(i); return s; };
   // Situação resumida de uma madrinha, usada nos cartões e na ficha.
   function resumo(m){
@@ -1058,9 +1066,8 @@ dialog form{display:grid;gap:16px;padding:22px}
 
   let chartMes = -1;
   function renderChart(){
-    const at = ativas();
-    const mensaisAt = at.filter(m => m.plano === "Mensal");
-    const base = MESES.map((_,i) => mensaisAt.filter(m => mesInicio(m) <= i + 1).reduce((s,m)=>s+m.valor,0));
+    const mensais = state.madrinhas.filter(m => m.plano === "Mensal");
+    const base = MESES.map((_,i) => mensais.filter(m => ativaNoMes(m, i + 1)).reduce((s,m)=>s+m.valor,0));
     const prev = base.slice();
     MESES.forEach((_,i) => { prev[i] = previstoMes(i + 1); });
     const parc = parcelasAnuais();
@@ -1243,7 +1250,7 @@ dialog form{display:grid;gap:16px;padding:22px}
     const somaMes = Array(12).fill(0), parcT = parcelasAnuais();
     rows.forEach(m => {
       if (m.plano === "Anual") Object.entries(parcT.porMadrinha[m.id] || {}).forEach(([k,p]) => { somaMes[Number(k)-1] += p.valor; });
-      else Object.entries(pagosDe(m)).forEach(([k,p]) => { somaMes[Number(k)-1] += Number(p.valor)||0; });
+      else Object.entries(pagosDe(m)).forEach(([k,p]) => { if (contaNoMes(m, state.ano, Number(k))) somaMes[Number(k)-1] += Number(p.valor)||0; });
     });
     const tot = somaMes.reduce((a,b)=>a+b,0);
     $("tfoot").innerHTML = `<td class="name">Total recebido (${rows.length})</td><td></td><td></td><td></td>` +
@@ -1475,7 +1482,8 @@ dialog form{display:grid;gap:16px;padding:22px}
   const noMes = (iso, ano, mes) => { const d = parseData(iso); return !!d && d.getFullYear() === ano && d.getMonth() + 1 === mes; };
   // Monta os números do mês com os dados atuais. O resultado é guardado tal como está (retrato do fechamento).
   function gerarRelatorio(mes){
-    const ano = state.ano, at = ativas();
+    // Quem estava ativa naquele mês (inclui quem saiu depois dele).
+    const ano = state.ano, at = state.madrinhas.filter(m => contaNoMes(m, ano, mes));
     // Anuidades contam 1/12 por mês coberto, como no resto do painel.
     const valorNoMes = m => m.plano === "Anual" ? valorAnual(m) / 12 : m.valor;
     const parc = parcelasAnuais();
@@ -1490,7 +1498,7 @@ dialog form{display:grid;gap:16px;padding:22px}
       if (m.plano === "Anual"){
         const p = (parc.porMadrinha[m.id] || {})[mes];
         if (p) pagaram.push({...linha(m), valor: p.valor, em: p.em, parcela: `${p.n}/12 de ${brl.format(p.total)}`});
-      } else if (pagosDe(m)[mes]) pagaram.push({...linha(m), valor: Number(pagosDe(m)[mes].valor) || 0, em: pagosDe(m)[mes].em || ""});
+      } else if (pagosDe(m)[mes] && contaNoMes(m, ano, mes)) pagaram.push({...linha(m), valor: Number(pagosDe(m)[mes].valor) || 0, em: pagosDe(m)[mes].em || ""});
     });
     pagaram.sort((a,b) => a.nome.localeCompare(b.nome, "pt-BR"));
     const naoPagaram = at.filter(m => estadoCelula(m, mes) === "open").map(m => ({...linha(m), valor: valorNoMes(m)}))
@@ -1732,7 +1740,9 @@ dialog form{display:grid;gap:16px;padding:22px}
 
   // ---------- Ex-madrinhas ----------
   const exMadrinhas = () => state.madrinhas.filter(m => m.situacao === "Encerrada");
-  const pagoRegistrado = m => [state.pagamentos[m.id], state.pagAnt[m.id]].reduce((s,p) => s + Object.values(p || {}).reduce((t,x) => t + (Number(x.valor) || 0), 0), 0);
+  // Total pago enquanto era madrinha (pagamentos no mês da saída ou depois não contam).
+  const pagoRegistrado = m => [[state.pagamentos[m.id], state.ano], [state.pagAnt[m.id], state.ano - 1]]
+    .reduce((s,[p, ano]) => s + Object.entries(p || {}).reduce((t,[mes,x]) => t + (contaNoMes(m, ano, Number(mes)) ? Number(x.valor) || 0 : 0), 0), 0);
   function mesesEntre(a, b){
     const d1 = parseData(a), d2 = parseData(b); if (!d1 || !d2) return null;
     return Math.max(1, (d2.getFullYear() - d1.getFullYear()) * 12 + d2.getMonth() - d1.getMonth() + 1);
