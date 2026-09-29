@@ -859,19 +859,24 @@ dialog form{display:grid;gap:16px;padding:22px}
     let t = 0; for (let i = 1; i <= 12; i++){ const p = pagoNoMes(m, i); if (p) t += Number(p.valor) || 0; } return t;
   }
   // Semestral: cada início registrado cobre 6 meses de Pix agendado.
+  // Períodos de Pix agendado: cada início cobre 6 meses; o período mais recente termina na
+  // data de fim do cadastro, se ela foi preenchida.
+  function periodosSemestre(m){
+    const inis = (m.semestres || []).map(parseData).filter(Boolean).sort((a,b) => a - b);
+    const fimCad = parseData(m.fim);
+    return inis.map((d, i) => ({ini: d, fim: i === inis.length - 1 && fimCad && fimCad >= d ? fimCad : new Date(d.getFullYear(), d.getMonth() + 6, 0)}));
+  }
   function agendado(m, ano, mes){
     if (m.plano !== "Semestral") return false;
-    return (m.semestres || []).some(ini => {
-      const d = parseData(ini); if (!d) return false;
-      const k = (ano - d.getFullYear()) * 12 + (mes - d.getMonth() - 1);
-      return k >= 0 && k < 6;
-    });
+    const idx = ano * 12 + mes - 1;
+    return periodosSemestre(m).some(p => idx >= p.ini.getFullYear() * 12 + p.ini.getMonth() && idx <= p.fim.getFullYear() * 12 + p.fim.getMonth());
   }
   function fimAgendamento(m){
-    let ult = null;
-    (m.semestres || []).forEach(ini => { const d = parseData(ini); if (!d) return; const f = new Date(d.getFullYear(), d.getMonth() + 6, 0); if (!ult || f > ult) ult = f; });
-    return ult ? isoData(ult) : "";
+    const ps = periodosSemestre(m);
+    return ps.length ? isoData(ps.reduce((a, p) => p.fim > a ? p.fim : a, ps[0].fim)) : "";
   }
+  // Fim sugerido ao cadastrar: 6 meses no semestral, 12 no anual.
+  const fimSugerido = (ini, plano) => { const d = parseData(ini); if (!d) return ""; return plano === "Semestral" ? isoData(new Date(d.getFullYear(), d.getMonth() + 6, 0)) : plano === "Anual" ? fimPadrao(ini) : ""; };
   // Pagamento que conta no mês (mensal/semestral): marcado à mão, ou Pix agendado já vencido que não falhou.
   function pagoNoMes(m, mes){
     const p = pagosDe(m)[mes];
@@ -959,6 +964,7 @@ dialog form{display:grid;gap:16px;padding:22px}
   // último mês pago (ou do mês de início, enquanto nada foi pago).
   function fimEfetivo(m){
     if (m.plano === "Anual"){
+      if (parseData(m.fim)) return m.fim;
       const r = renovacaoAnual(m);
       if (r) return isoData(new Date(r.getFullYear(), r.getMonth(), r.getDate() - 1));
       return m.fim || "";
@@ -1815,7 +1821,7 @@ dialog form{display:grid;gap:16px;padding:22px}
     // Volta como nova assinatura: a mensal recomeça hoje, sem cobrar os meses em que esteve fora.
     const campos = {situacao: "Ativa", situacaoEm: isoData(hoje), motivoSaida: "", obsSaida: "", foraQuadro: false};
     if (ehMensal(m)) campos.inicio = isoData(hoje);
-    if (m.plano === "Semestral") campos.semestres = [isoData(hoje)];
+    if (m.plano === "Semestral"){ campos.semestres = [isoData(hoje)]; campos.fim = fimSugerido(isoData(hoje), "Semestral"); }
     salvarMadrinha(m, campos, `${m.nome.trim()} voltou a ser madrinha.`);
   }
   document.addEventListener("click", e => {
@@ -2093,7 +2099,8 @@ dialog form{display:grid;gap:16px;padding:22px}
       if (m.plano === "Semestral"){
         // Novo agendamento de 6 meses, começando no dia seguinte ao fim do atual.
         const f = parseData(fimAgendamento(m)), ini = f ? isoData(new Date(f.getFullYear(), f.getMonth(), f.getDate() + 1)) : isoData(hoje);
-        salvarMadrinha(m, {semestres: [...(m.semestres || []), ini]}, `${m.nome.trim()}: Pix agendado renovado até ${fmtData(fimDoMes(parseData(ini).getFullYear(), parseData(ini).getMonth() + 6))}.`);
+        const novoFim = fimSugerido(ini, "Semestral");
+        salvarMadrinha(m, {semestres: [...(m.semestres || []), ini], fim: novoFim}, `${m.nome.trim()}: Pix agendado renovado até ${fmtData(novoFim)}.`);
         return;
       }
       if (m.plano === "Mensal"){
@@ -2128,7 +2135,8 @@ dialog form{display:grid;gap:16px;padding:22px}
     $("f-meio").value = m ? (m.meio || "") : "";
     const ini = m ? (m.inicio || "") : isoData(hoje);
     $("f-ini").value = ini;
-    $("f-fim").value = m ? (m.fim || "") : ($("f-plano").value === "Anual" ? fimPadrao(ini) : "");
+    $("f-fim").value = m ? (m.fim || (m.plano === "Semestral" ? fimAgendamento(m) : m.plano === "Anual" ? fimEfetivo(m) : "")) : "";
+    planoAnterior = "";
     $("f-fim").setCustomValidity("");
     const ok = podeGravar();
     ["f-nome","f-plano","f-valor","f-pres","f-sit","f-cont","f-meio","f-ini","f-fim"].forEach(id => $(id).disabled = !ok);
@@ -2139,15 +2147,19 @@ dialog form{display:grid;gap:16px;padding:22px}
     $("dlg").showModal();
   }
   // Mensal renova todo mês: não tem fim fixo. Anual: fim sugerido em 12 meses.
+  let planoAnterior = "";
   function ajustarDatas(){
-    const mensal = $("f-plano").value !== "Anual", semestral = $("f-plano").value === "Semestral";
-    $("f-fim-box").hidden = mensal;
+    const plano = $("f-plano").value, mensal = plano !== "Anual", semestral = plano === "Semestral";
+    $("f-fim-box").hidden = plano === "Mensal";
+    // Ao trocar de plano, o fim sugerido acompanha (se ainda era o sugerido do plano anterior).
+    const f = $("f-fim").value, ini = $("f-ini").value;
+    if (plano !== "Mensal" && (!f || (planoAnterior && f === fimSugerido(ini, planoAnterior)))) $("f-fim").value = fimSugerido(ini, plano);
+    planoAnterior = plano;
     $("f-datas-note").textContent = semestral
-      ? "Semestral: Pix mensal agendado por 6 meses a partir do início. Esses meses ficam pagos sozinhos; se algum Pix falhar, clique no mês para marcar."
+      ? "Semestral: Pix mensal agendado do início até o fim (sugerido em 6 meses; você pode alterar). Esses meses ficam pagos sozinhos; se algum Pix falhar, clique no mês para marcar."
       : mensal
       ? "A mensal renova todo mês: fica ativa até o fim do último mês pago. Os meses antes do início não são cobrados."
-      : "O fim é preenchido com 12 meses após o início. Ao registrar o pagamento em Anuidades, ele é recalculado.";
-    if (!mensal && !$("f-fim").value && $("f-ini").value) $("f-fim").value = fimPadrao($("f-ini").value);
+      : "O fim é preenchido com 12 meses após o início. Você pode alterar; ao registrar um novo pagamento em Anuidades, ele é recalculado.";
   }
   $("f-plano").addEventListener("change", ajustarDatas);
   $("add").addEventListener("click", () => abrirDialogo(null));
@@ -2156,7 +2168,8 @@ dialog form{display:grid;gap:16px;padding:22px}
   $("f-ini").addEventListener("focus", e => { iniAnterior = e.target.value; });
   $("f-ini").addEventListener("change", e => {
     const f = $("f-fim").value;
-    if (!f || f === fimPadrao(iniAnterior)) $("f-fim").value = fimPadrao(e.target.value);
+    const pl = $("f-plano").value;
+    if (pl !== "Mensal" && (!f || f === fimSugerido(iniAnterior, pl))) $("f-fim").value = fimSugerido(e.target.value, pl);
     iniAnterior = e.target.value;
     $("f-fim").setCustomValidity("");
   });
@@ -2209,7 +2222,7 @@ dialog form{display:grid;gap:16px;padding:22px}
     const valor = Math.max(0, Math.round(Number($("f-valor").value) || 0));
     const presentes = Math.max(0, Math.round(Number($("f-pres").value) || 0));
     if (!nome){ $("f-nome").focus(); return; }
-    const inicio = $("f-ini").value, fim = $("f-plano").value !== "Anual" ? "" : $("f-fim").value;
+    const inicio = $("f-ini").value, fim = $("f-plano").value === "Mensal" ? "" : $("f-fim").value;
     if (inicio && fim && fim < inicio){ $("f-fim").setCustomValidity("O fim precisa ser depois do início."); $("f-fim").reportValidity(); return; }
     let id = editando ? editando.id : slug(nome);
     if (!editando && state.madrinhas.some(m => m.id === id)) id += "-" + Math.random().toString(36).slice(2,6);
