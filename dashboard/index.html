@@ -278,6 +278,7 @@ tbody tr.anual:hover td{background:color-mix(in srgb,var(--anual-soft) 70%,var(-
 tr.anual td.name{box-shadow:inset 3px 0 0 var(--anual)}
 .ren li.anual{background:var(--anual-soft)}
 .ren li.exq{background:var(--surface-2)}
+.ren li.ren-sep{display:block;padding:8px 14px;background:var(--surface-2);font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .ren li.anual.venc{background:var(--bad-soft)}
 .bar-row[data-grupo="Anual"] .track b{background:var(--anual)}
 .sw.anual{background:var(--anual-soft);border:1.5px solid var(--anual)}
@@ -620,13 +621,6 @@ dialog form{display:grid;gap:16px;padding:22px}
       </div>
     </section>
 
-    <section class="panel" aria-labelledby="h-ren-x">
-      <div class="panel-h">
-        <h2 id="h-ren-x">Ex-madrinhas para convidar a voltar</h2>
-        <p id="ren-x-sub"></p>
-      </div>
-      <ul class="ren" id="ren-x"></ul>
-    </section>
   </section>
 
   <!-- MADRINHAS -->
@@ -1300,15 +1294,30 @@ dialog form{display:grid;gap:16px;padding:22px}
     .sort((a,b) => (diasParaFim(a) ?? -1e9) - (diasParaFim(b) ?? -1e9));
   const itemTudoCerto = txt => `<li style="grid-template-columns:auto 1fr"><span class="chip good">✓ Tudo certo</span><span class="who">${txt}</span></li>`;
   const btnWa = (href, rotulo) => href ? `<a class="btn sm" href="${href}" target="_blank" rel="noopener"><span class="wa" style="width:18px;height:18px">${WA_ICON}</span>${rotulo}</a>` : "";
+  // Bloco "Saíram ou pausaram" dentro de cada quadro de cobrança.
+  function blocoRetorno(lista, dis){
+    if (!lista.length) return "";
+    return `<li class="ren-sep"><span>Saíram ou pausaram · convidar a voltar (${lista.length})</span></li>` + lista.map(m => `<li class="exq${m.plano === "Anual" ? " anual" : ""}">
+        <span class="chip neutral">${m.situacao === "Pausada" ? "Pausada" : "Ex-madrinha"}</span>
+        <span class="who"><button class="link-name" type="button" data-ficha="${esc(m.id)}">${esc(m.nome.trim())}</button>${m.plano === "Anual" ? ' <span class="tag-anual">Anual</span>' : ""}<small>${m.plano === "Anual" ? brl.format(valorAnual(m)) + "/ano" : brl.format(m.valor) + "/mês"} · ${esc(m.motivoSaida || (m.situacao === "Pausada" ? "pausou" : "motivo não informado"))} · ${esc(m.contato)}</small></span>
+        <span class="fim num">${m.situacao === "Pausada" ? "Pausou" : "Saiu"} em ${fmtData(m.situacaoEm) || "—"}</span>
+        <span class="acts">
+          ${btnWa(linkConvite(m), "Convidar a voltar")}
+          <button class="btn sm primary" type="button" data-reativar="${esc(m.id)}"${dis}>Reativar</button>
+          <button class="btn sm" type="button" data-quadro="${esc(m.id)}" data-v="0"${dis}>Tirar do quadro</button>
+        </span>
+      </li>`).join("");
+  }
   function renderRenovacoes(){
     const ok = podeGravar(), dis = ok ? "" : " disabled";
     const n = mesesPassados();
 
-    // Mensais: meses em aberto até o mês atual.
-    const mens = mensaisCobrar();
+    // Mensais: meses em aberto até o mês atual, e depois quem saiu ou pausou.
+    const mens = mensaisCobrar(), exM = exNoQuadro().filter(m => m.plano === "Mensal");
     const totalMens = mens.reduce((s,m) => s + pendencias(m) * m.valor, 0);
-    $("ren-m-sub").textContent = mens.length ? `${plural(mens.length, "madrinha", "madrinhas")} · ${brl.format(totalMens)} em aberto` : "Mensalidades em aberto até o mês atual";
-    $("ren-m").innerHTML = mens.length ? mens.map(m => {
+    $("ren-m-sub").textContent = [mens.length ? `${plural(mens.length, "madrinha", "madrinhas")} · ${brl.format(totalMens)} em aberto` : "",
+      exM.length ? `${exM.length} para convidar a voltar` : ""].filter(Boolean).join(" · ") || "Mensalidades em aberto até o mês atual";
+    $("ren-m").innerHTML = (mens.length ? mens.map(m => {
       const pend = pendencias(m), abertos = [];
       for (let i = mesInicio(m); i <= n; i++) if (estadoCelula(m, i) === "open") abertos.push(MESES[i-1].toLowerCase());
       return `<li class="${pend > 1 ? "venc" : ""}">
@@ -1321,12 +1330,13 @@ dialog form{display:grid;gap:16px;padding:22px}
           <button class="btn sm parou" type="button" data-parou="${esc(m.id)}"${dis}>Parou</button>
         </span>
       </li>`;
-    }).join("") : itemTudoCerto("Nenhuma mensalidade em aberto.");
+    }).join("") : itemTudoCerto("Nenhuma mensalidade em aberto.")) + blocoRetorno(exM, dis);
 
-    // Anuais: vencendo em até 15 dias, vencidas ou sem pagamento.
-    const anu = anuaisCobrar();
-    $("ren-a-sub").textContent = anu.length ? `${plural(anu.length, "anuidade", "anuidades")} · ${brl.format(anu.reduce((s,m)=>s+valorAnual(m),0))}` : `Vencendo em até ${AVISO_DIAS} dias, vencidas ou sem pagamento`;
-    $("ren-a").innerHTML = anu.length ? anu.map(m => {
+    // Anuais: vencendo em até 15 dias, vencidas ou sem pagamento, e depois quem saiu ou pausou.
+    const anu = anuaisCobrar(), exA = exNoQuadro().filter(m => m.plano === "Anual");
+    $("ren-a-sub").textContent = [anu.length ? `${plural(anu.length, "anuidade", "anuidades")} · ${brl.format(anu.reduce((s,m)=>s+valorAnual(m),0))}` : "",
+      exA.length ? `${exA.length} para convidar a voltar` : ""].filter(Boolean).join(" · ") || `Vencendo em até ${AVISO_DIAS} dias, vencidas ou sem pagamento`;
+    $("ren-a").innerHTML = (anu.length ? anu.map(m => {
       const d = diasParaFim(m), semPag = d === null;
       const chip = semPag ? `<span class="chip warn">! Sem pagamento</span>`
         : d < 0 ? `<span class="chip bad">! Venceu há ${plural(-d,"dia","dias")}</span>`
@@ -1342,23 +1352,9 @@ dialog form{display:grid;gap:16px;padding:22px}
           <button class="btn sm parou" type="button" data-parou="${esc(m.id)}"${dis}>Parou</button>
         </span>
       </li>`;
-    }).join("") : itemTudoCerto(`Nenhuma anuidade vence nos próximos ${AVISO_DIAS} dias.`);
+    }).join("") : itemTudoCerto(`Nenhuma anuidade vence nos próximos ${AVISO_DIAS} dias.`)) + blocoRetorno(exA, dis);
     const breve = ativas().filter(m => { const d = diasParaFim(m); return m.plano === "Anual" && d !== null && d > AVISO_DIAS && d <= 60; }).length;
     $("ren-a-foot").innerHTML = breve ? `<span>${plural(breve,"anuidade termina","anuidades terminam")} entre 16 e 60 dias.</span>` : "";
-
-    // Ex-madrinhas para convidar a voltar.
-    const exs = exNoQuadro();
-    $("ren-x-sub").textContent = exs.length ? plural(exs.length, "pessoa", "pessoas") : "Quem saiu aparece aqui até ser tirada do quadro";
-    $("ren-x").innerHTML = exs.length ? exs.map(m => `<li class="exq">
-        <span class="chip neutral">Ex-madrinha</span>
-        <span class="who"><button class="link-name" type="button" data-ficha="${esc(m.id)}">${esc(m.nome.trim())}</button><small>${m.plano === "Anual" ? "Anual · " + brl.format(valorAnual(m)) + "/ano" : "Mensal · " + brl.format(m.valor) + "/mês"} · ${esc(m.motivoSaida || "motivo não informado")} · ${esc(m.contato)}</small></span>
-        <span class="fim num">Saiu em ${fmtData(m.situacaoEm) || "—"}</span>
-        <span class="acts">
-          ${btnWa(linkConvite(m), "Convidar a voltar")}
-          <button class="btn sm primary" type="button" data-reativar="${esc(m.id)}"${dis}>Reativar</button>
-          <button class="btn sm" type="button" data-quadro="${esc(m.id)}" data-v="0"${dis}>Tirar do quadro</button>
-        </span>
-      </li>`).join("") : itemTudoCerto("Nenhuma ex-madrinha para convidar.");
 
     const nSemData = ativas().filter(semData).length;
     $("ren-foot").innerHTML = nSemData ? `<span>${plural(nSemData,"madrinha ativa ainda está","madrinhas ativas ainda estão")} sem data de início e ${nSemData === 1 ? "é cobrada" : "são cobradas"} desde janeiro. Complete pela aba Madrinhas.</span>` : "";
@@ -1800,7 +1796,8 @@ dialog form{display:grid;gap:16px;padding:22px}
   }
 
   // ---------- Ex-madrinhas ----------
-  const exMadrinhas = () => state.madrinhas.filter(m => m.situacao === "Encerrada");
+  // Quem saiu (Encerrada) ou pausou: fica na aba Ex-madrinhas e nos quadros de cobrança para convidar a voltar.
+  const exMadrinhas = () => state.madrinhas.filter(m => m.situacao !== "Ativa");
   // Total pago enquanto era madrinha (pagamentos no mês da saída ou depois não contam).
   const pagoRegistrado = m => [[state.pagamentos[m.id], state.ano], [state.pagAnt[m.id], state.ano - 1]]
     .reduce((s,[p, ano]) => s + Object.entries(p || {}).reduce((t,[mes,x]) => t + (contaNoMes(m, ano, Number(mes)) ? Number(x.valor) || 0 : 0), 0), 0);
@@ -1847,7 +1844,7 @@ dialog form{display:grid;gap:16px;padding:22px}
       const tempo = mesesEntre(m.inicio, m.situacaoEm), pago = pagoRegistrado(m), conf = exConfirma === m.id;
       return `<div class="card ex">
         <span class="card-h"><span class="card-top"><span class="avatar" aria-hidden="true">${esc(iniciais(m.nome))}</span>
-          <span><b>${esc(m.nome.trim())}</b><small>${m.plano === "Anual" ? "Anual · " + brl.format(valorAnual(m)) + "/ano" : "Mensal · " + brl.format(m.valor) + "/mês"}${m.meio ? " · " + esc(m.meio) : ""}</small></span></span></span>
+          <span><b>${esc(m.nome.trim())}</b>${m.situacao === "Pausada" ? ' <span class="chip neutral">Pausada</span>' : ""}<small>${m.plano === "Anual" ? "Anual · " + brl.format(valorAnual(m)) + "/ano" : "Mensal · " + brl.format(m.valor) + "/mês"}${m.meio ? " · " + esc(m.meio) : ""}</small></span></span></span>
         <span class="ex-info">
           <span>${m.inicio ? `Madrinha de ${fmtData(m.inicio)} a ${fmtData(m.situacaoEm) || "—"}${tempo ? ` · ${plural(tempo, "mês", "meses")}` : ""}` : `Saiu em ${fmtData(m.situacaoEm) || "data não registrada"}`}</span>
           <span><b>${esc(m.motivoSaida || "Motivo não informado")}</b>${m.obsSaida ? ` · ${esc(m.obsSaida)}` : ""}</span>
