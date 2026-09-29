@@ -673,15 +673,13 @@ dialog form{display:grid;gap:16px;padding:22px}
     <section class="panel" aria-labelledby="h-rel">
       <div class="panel-h">
         <h2 id="h-rel">Relatório mensal</h2>
-        <p>Todo dia 1º o painel fecha sozinho o relatório do mês anterior.</p>
+        <p>Sempre atualizado: muda na hora em que qualquer pagamento, cadastro ou data muda.</p>
       </div>
       <div class="toolbar">
         <div class="field"><label for="rm">Mês</label><select id="rm"></select></div>
-        <button class="btn" type="button" id="rel-salvar">Salvar relatório</button>
         <button class="btn primary" type="button" id="rel-pdf">Baixar PDF</button>
       </div>
       <div class="rel-status" id="rel-status"></div>
-      <div class="fchips" id="rel-salvos"></div>
     </section>
     <article class="rel" id="rel"></article>
   </section>
@@ -1635,20 +1633,12 @@ dialog form{display:grid;gap:16px;padding:22px}
     const n = mesesPassados();
     if (!state.relMes || state.relMes > 12) state.relMes = Math.max(1, (state.ano === hoje.getFullYear() ? n - 1 : n) || 1);
     $("rm").value = String(state.relMes);
-    const id = idRel(state.ano, state.relMes), salvo = state.relatorios[id];
-    const r = salvo ? salvo.dados : gerarRelatorio(state.relMes);
+    // Sempre calculado com os dados de agora: qualquer mudança no painel já aparece aqui.
+    const r = gerarRelatorio(state.relMes);
     state.relAtual = r;
-    const ok = podeGravar(), nomeMes = MESES_LONGOS[r.mes - 1];
-    $("rel-salvar").textContent = salvo ? "Atualizar com os dados de hoje" : "Salvar relatório";
-    $("rel-salvar").disabled = !ok;
-    $("rel-status").innerHTML = salvo
-      ? `<span class="chip good">✓ Fechado</span> Relatório salvo em ${fmtData(salvo.geradoEm)}${salvo.auto ? " automaticamente" : ""}. Pagamentos marcados depois disso não entram até você atualizar.`
-      : `<span class="chip neutral">Prévia</span> Montado com os dados de agora e ainda não salvo.`;
-    const ids = Object.keys(state.relatorios).filter(k => k.startsWith(state.ano + "-")).sort();
-    $("rel-salvos").innerHTML = ids.length ? `<span class="hint">Salvos em ${state.ano}:</span>` + ids.map(k => {
-      const m = Number(k.slice(5));
-      return `<button class="fchip" type="button" data-relmes="${m}" style="padding-right:12px"${m === state.relMes ? ' aria-pressed="true"' : ""}>${cap(MESES_LONGOS[m-1])}</button>`;
-    }).join("") : "";
+    const nomeMes = MESES_LONGOS[r.mes - 1];
+    const agora = new Date();
+    $("rel-status").innerHTML = `<span class="chip good">● Ao vivo</span> Atualizado às ${String(agora.getHours()).padStart(2,"0")}:${String(agora.getMinutes()).padStart(2,"0")} de ${agora.toLocaleDateString("pt-BR")}. O PDF sai com os números deste momento.`;
 
     const pct = r.previsto ? Math.round(r.recebido / r.previsto * 100) : 0;
     const dif = r.anterior ? Math.round((r.recebido - r.anterior) / r.anterior * 100) : null;
@@ -1686,37 +1676,6 @@ dialog form{display:grid;gap:16px;padding:22px}
           <div><b>Encerraram ou pausaram (${r.sairam.length})</b>${listaMov(r.sairam, "Nenhuma saída no mês.", x => `${esc(x.nome)} · ${x.situacao === "Encerrada" ? "saiu" : esc(x.situacao.toLowerCase())} em ${fmtData(x.data)}${x.motivo ? " · " + esc(x.motivo.toLowerCase()) : ""}`)}</div>
         </div>
       </section>`;
-  }
-
-  async function salvarRelatorio(mes, auto, dados){
-    const id = idRel(dados ? dados.ano : state.ano, mes);
-    const doc = {ano: dados ? dados.ano : state.ano, mes, geradoEm: isoData(hoje), auto: !!auto, dados: dados || gerarRelatorio(mes)};
-    state.relatorios[id] = doc;
-    if (!auto) renderRelatorio();
-    await gravar(`relatorios/${id}`, ref => ref.set(doc));
-    return doc;
-  }
-  // No primeiro acesso a partir do dia 1º, fecha sozinho o relatório do mês anterior.
-  let autoFeito = false;
-  async function autoRelatorio(){
-    if (autoFeito || !podeGravar() || !state.pagCarregado || !state.relCarregado) return;
-    autoFeito = true;
-    const alvo = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1), ano = alvo.getFullYear(), mes = alvo.getMonth() + 1;
-    const id = idRel(ano, mes);
-    try {
-      if (state.relatorios[id] || (await state.db.doc(`relatorios/${id}`).get()).exists) return;
-      let dados;
-      if (ano === state.ano) dados = gerarRelatorio(mes);
-      else {
-        const snap = await state.db.collection("pagamentos").where("ano","in",[ano-1, ano]).get();
-        const p = {}, a = {};
-        snap.docs.forEach(d => { const v = d.data(); if (v && v.madrinha) (v.ano === ano ? p : a)[v.madrinha] = {...(v.meses || {})}; });
-        dados = comAno(ano, p, a, () => gerarRelatorio(mes));
-      }
-      await salvarRelatorio(mes, true, dados);
-      renderRelatorio();
-      toast(`Relatório de ${MESES_LONGOS[mes-1]} fechado automaticamente.`);
-    } catch (e) {}
   }
 
   // PDF montado no navegador (jsPDF) e entregue pelo download do visualizador.
@@ -2287,7 +2246,7 @@ dialog form{display:grid;gap:16px;padding:22px}
         const v = d.data(); if (!v || !v.madrinha) return;
         (v.ano === ano ? p : a)[v.madrinha] = {...(v.meses || {})};
       });
-      state.pagamentos = p; state.pagAnt = a; state.pagCarregado = true; render(); autoRelatorio();
+      state.pagamentos = p; state.pagAnt = a; state.pagCarregado = true; render();
     }, () => {});
   }
   async function conectar(){
@@ -2306,14 +2265,8 @@ dialog form{display:grid;gap:16px;padding:22px}
       state.madrinhas = snap.docs.map(d => ({id: d.id, ...d.data()}))
         .map(m => ({...m, valor: Number(m.valor)||0, presentes: Number(m.presentes)||0, contato: String(m.contato||""), nome: String(m.nome||"")}))
         .sort((a,b) => (a.ordem ?? 1e9) - (b.ordem ?? 1e9) || a.nome.localeCompare(b.nome,"pt-BR"));
-      render(); autoRelatorio();
+      render();
     }, e => { if (e && e.code === "revoked"){ state.db = null; state.podeEditar = false; render(); } });
-    db.collection("relatorios").onSnapshot(snap => {
-      const r = {};
-      snap.docs.forEach(d => { const v = d.data(); if (v && v.dados) r[d.id] = v; });
-      state.relatorios = r; state.relCarregado = true;
-      renderRelatorio(); autoRelatorio();
-    }, () => {});
     db.doc("config/anuidades").onSnapshot(snap => {
       const c = snap.exists && snap.data().cobertura;
       state.cobertura = c === "calendario" ? "calendario" : "12meses";
@@ -2332,11 +2285,6 @@ dialog form{display:grid;gap:16px;padding:22px}
   $("rm").innerHTML = MESES_LONGOS.map((m,i) => `<option value="${i+1}">${cap(m)}</option>`).join("");
   $("rm").addEventListener("change", e => { state.relMes = Number(e.target.value); renderRelatorio(); });
   $("rel-pdf").addEventListener("click", baixarPDF);
-  $("rel-salvar").addEventListener("click", () => {
-    if (!podeGravar()) return;
-    salvarRelatorio(state.relMes, false).then(() => toast(`Relatório de ${MESES_LONGOS[state.relMes-1]} salvo.`)).catch(erroGravacao);
-  });
-  $("rel-salvos").addEventListener("click", e => { const b = e.target.closest("[data-relmes]"); if (b){ state.relMes = Number(b.dataset.relmes); renderRelatorio(); } });
   $("fm").innerHTML = `<option value="0">Todos</option>` + MESES_LONGOS.map((m,i) => `<option value="${i+1}">${cap(m)}</option>`).join("");
   render();
   conectar();
