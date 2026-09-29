@@ -336,6 +336,12 @@ dialog form{display:grid;gap:16px;padding:22px}
 }
 .meio-sel{height:30px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);padding:0 6px;font-size:13px;max-width:140px}
 .meio-sel[disabled]{opacity:.7}
+.card.ex{cursor:default;background:var(--surface-2)}
+.card.ex:hover{transform:none;box-shadow:none;border-color:var(--line)}
+.card.ex .avatar{background:var(--line);color:var(--ink-2)}
+.ex-info{display:grid;gap:4px;font-size:13px;color:var(--ink-2)}
+.ex-info b{font-weight:600;color:var(--ink)}
+.ex-acts{display:flex;flex-wrap:wrap;gap:6px}
 /* Relatório */
 .fchip[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
 .rel-status{font-size:13.5px;color:var(--ink-2);display:flex;flex-wrap:wrap;gap:8px;align-items:center}
@@ -389,8 +395,9 @@ dialog form{display:grid;gap:16px;padding:22px}
   .top-actions .status{grid-column:1/-1;justify-self:start;font-size:12px;padding:4px 10px}
   .top-actions .btn.primary{height:40px;justify-content:center}
   /* Abas viram barra fixa no rodapé */
-  .tabs{position:fixed;top:auto;bottom:0;left:0;right:0;z-index:20;display:grid;grid-template-columns:repeat(5,1fr);gap:2px;border-radius:0;border-width:1px 0 0;padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px));background:var(--surface);box-shadow:0 -4px 20px rgba(23,27,51,.08);overflow:visible}
+  .tabs{position:fixed;top:auto;bottom:0;left:0;right:0;z-index:20;display:grid;grid-template-columns:repeat(6,1fr);gap:2px;border-radius:0;border-width:1px 0 0;padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px));background:var(--surface);box-shadow:0 -4px 20px rgba(23,27,51,.08);overflow:visible}
   .tab{position:relative;flex-direction:column;gap:2px;height:54px;padding:0 1px;font-size:10.5px;border-radius:12px;min-width:0}
+  .tab > span:not(.badge){max-width:100%;overflow:hidden;text-overflow:ellipsis}
   .tab .ti{display:block}
   .tab .lg{display:none}
   .tab .sh{display:inline}
@@ -455,9 +462,10 @@ dialog form{display:grid;gap:16px;padding:22px}
 
   <nav class="tabs" role="tablist" aria-label="Seções do painel">
     <button class="tab" role="tab" id="t-geral" data-tab="geral" aria-controls="p-geral"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span class="lg">Visão geral</span><span class="sh">Geral</span></button>
-    <button class="tab" role="tab" id="t-pagamentos" data-tab="pagamentos" aria-controls="p-pagamentos"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4M9 15l2 2 4-4"/></svg><span>Pagamentos</span><span class="badge" id="b-pag" hidden></span></button>
-    <button class="tab" role="tab" id="t-renovacoes" data-tab="renovacoes" aria-controls="p-renovacoes"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.9-3M4 13a8 8 0 0 0 14.9 3M5 3v5h5M19 21v-5h-5"/></svg><span>Renovações</span><span class="badge" id="b-ren" hidden></span></button>
-    <button class="tab" role="tab" id="t-madrinhas" data-tab="madrinhas" aria-controls="p-madrinhas"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5a6.5 6.5 0 0 1 3.5 5.5"/></svg><span>Madrinhas</span><span class="badge neutral" id="b-mad"></span></button>
+    <button class="tab" role="tab" id="t-pagamentos" data-tab="pagamentos" aria-controls="p-pagamentos"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4M9 15l2 2 4-4"/></svg><span class="lg">Pagamentos</span><span class="sh">Pagos</span><span class="badge" id="b-pag" hidden></span></button>
+    <button class="tab" role="tab" id="t-renovacoes" data-tab="renovacoes" aria-controls="p-renovacoes"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.9-3M4 13a8 8 0 0 0 14.9 3M5 3v5h5M19 21v-5h-5"/></svg><span class="lg">Renovações</span><span class="sh">Renovar</span><span class="badge" id="b-ren" hidden></span></button>
+    <button class="tab" role="tab" id="t-madrinhas" data-tab="madrinhas" aria-controls="p-madrinhas"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5a6.5 6.5 0 0 1 3.5 5.5"/></svg><span class="lg">Madrinhas</span><span class="sh">Ativas</span><span class="badge neutral" id="b-mad"></span></button>
+    <button class="tab" role="tab" id="t-ex" data-tab="ex" aria-controls="p-ex"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9M10 13h4"/></svg><span class="lg">Ex-madrinhas</span><span class="sh">Saíram</span><span class="badge neutral" id="b-ex" hidden></span></button>
     <button class="tab" role="tab" id="t-relatorio" data-tab="relatorio" aria-controls="p-relatorio"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg><span>Relatório</span></button>
   </nav>
 
@@ -621,6 +629,22 @@ dialog form{display:grid;gap:16px;padding:22px}
     </section>
   </section>
 
+  <!-- EX-MADRINHAS -->
+  <section class="tabpanel" id="p-ex" role="tabpanel" aria-labelledby="t-ex" hidden>
+    <section class="panel" aria-labelledby="h-ex">
+      <div class="panel-h">
+        <h2 id="h-ex">Ex-madrinhas</h2>
+        <p>Quem já foi madrinha fica registrado aqui. Nada é apagado e dá para reativar.</p>
+      </div>
+      <div class="rel-status" id="ex-resumo"></div>
+      <div class="toolbar">
+        <div class="field"><label for="eq">Buscar</label><input id="eq" type="search" placeholder="Nome ou telefone" autocomplete="off"></div>
+        <div class="field"><label for="emot">Motivo</label><select id="emot"></select></div>
+      </div>
+      <div class="cards" id="ex-list"></div>
+    </section>
+  </section>
+
   <!-- RELATÓRIO -->
   <section class="tabpanel" id="p-relatorio" role="tabpanel" aria-labelledby="t-relatorio" hidden>
     <section class="panel" aria-labelledby="h-rel">
@@ -645,6 +669,26 @@ dialog form{display:grid;gap:16px;padding:22px}
   <div class="ficha" id="ficha-body"></div>
 </dialog>
 
+<!-- Saída da madrinha -->
+<dialog id="dlg-saida" aria-labelledby="saida-nome">
+  <form id="saida-form" method="dialog">
+    <div>
+      <span class="eyebrow">Retirar da lista de madrinhas</span>
+      <h2 id="saida-nome">Madrinha</h2>
+    </div>
+    <p class="dlg-note">Ela sai dos pagamentos, das cobranças e do previsto, e passa para a aba Ex-madrinhas com todo o histórico. Dá para reativar depois.</p>
+    <div class="fgrid">
+      <div class="f"><label for="s-data">Data de saída</label><input id="s-data" type="date" required></div>
+      <div class="f"><label for="s-motivo">Motivo</label><select id="s-motivo"></select></div>
+      <div class="f full"><label for="s-obs">Observação (opcional)</label><input id="s-obs" maxlength="160" placeholder="Ex.: pediu para pausar até o fim do ano"></div>
+    </div>
+    <div class="dlg-actions">
+      <button class="btn" type="button" id="saida-cancel">Cancelar</button>
+      <button class="btn primary" type="submit" id="saida-ok">Retirar da lista</button>
+    </div>
+  </form>
+</dialog>
+
 <!-- Cadastro -->
 <dialog id="dlg">
   <form id="dlg-form" method="dialog">
@@ -666,7 +710,7 @@ dialog form{display:grid;gap:16px;padding:22px}
     </div>
     <p class="dlg-note" id="dlg-note"></p>
     <div class="dlg-actions">
-      <button class="btn danger" type="button" id="dlg-del" hidden>Excluir madrinha</button>
+      <button class="btn danger" type="button" id="dlg-del" hidden>Retirar da lista</button>
       <button class="btn" type="button" id="dlg-cancel">Cancelar</button>
       <button class="btn primary" id="dlg-save" type="submit">Salvar</button>
     </div>
@@ -727,7 +771,8 @@ dialog form{display:grid;gap:16px;padding:22px}
   const MESES = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
   const MESES_LONGOS = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
   const REGIOES = {"11":"São Paulo e Grande SP","16":"Ribeirão Preto e região","18":"Presidente Prudente e região"};
-  const TABS = ["geral","pagamentos","renovacoes","madrinhas","relatorio"];
+  const TABS = ["geral","pagamentos","renovacoes","madrinhas","ex","relatorio"];
+  const MOTIVOS = ["Parou de contribuir","Pediu para sair","Sem contato","Mudou de cidade ou país","Outro"];
   const MEIOS = ["Mercado Pago","PayPal","Asaas","Outro"];
   const brl = new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:0});
   const int = new Intl.NumberFormat("pt-BR");
@@ -1215,7 +1260,6 @@ dialog form{display:grid;gap:16px;padding:22px}
     return {ano: d.getFullYear(), mes: d.getMonth() + 1};
   }
   const rotuloRenovar = m => m.plano === "Anual" ? "Renovar por 12 meses" : `Marcar ${MESES_LONGOS[proximoMes(m).mes - 1]} como pago`;
-  let encerrarPendente = null, encerrarT;
   function renderRenovacoes(){
     const ok = podeGravar(), dis = ok ? "" : " disabled";
     const at = ativas();
@@ -1224,7 +1268,7 @@ dialog form{display:grid;gap:16px;padding:22px}
       const chip = d < 0 ? `<span class="chip bad">! Venceu há ${plural(-d,"dia","dias")}</span>`
         : d === 0 ? `<span class="chip warn">! Termina hoje</span>`
         : `<span class="chip warn">Faltam ${plural(d,"dia","dias")}</span>`;
-      const wa = linkRenovacao(m), conf = encerrarPendente === m.id;
+      const wa = linkRenovacao(m);
       return `<li class="${d < 0 ? "venc" : ""}${m.plano === "Anual" ? " anual" : ""}">
         ${chip}
         <span class="who"><button class="link-name" type="button" data-ficha="${esc(m.id)}">${esc(m.nome.trim())}</button>${m.plano === "Anual" ? ' <span class="tag-anual">Anual</span>' : ""}<small>${m.plano === "Anual" ? "" : esc(m.plano) + " · "}${brl.format(m.valor)}${m.plano === "Anual" ? "/ano" : "/mês"} · ${esc(m.contato)}</small></span>
@@ -1232,7 +1276,7 @@ dialog form{display:grid;gap:16px;padding:22px}
         <span class="acts">
           ${wa ? `<a class="btn sm" href="${wa}" target="_blank" rel="noopener"><span class="wa" style="width:18px;height:18px">${WA_ICON}</span>Lembrar</a>` : ""}
           <button class="btn sm" type="button" data-renovar="${esc(m.id)}"${dis}>${esc(rotuloRenovar(m))}</button>
-          <button class="btn sm" type="button" data-encerrar="${esc(m.id)}"${dis}${conf ? ' style="color:var(--bad);border-color:var(--bad)"' : ""}>${conf ? "Confirmar encerramento" : "Encerrar"}</button>
+          <button class="btn sm" type="button" data-encerrar="${esc(m.id)}"${dis}>Retirar da lista</button>
         </span>
       </li>`;
     }).join("") : `<li style="grid-template-columns:auto 1fr"><span class="chip good">✓ Tudo certo</span><span class="who">Nenhuma anuidade termina nos próximos ${AVISO_DIAS} dias e nenhuma mensal está com o mês vencido.</span></li>`;
@@ -1453,7 +1497,7 @@ dialog form{display:grid;gap:16px;padding:22px}
       (Object.keys(state.pagAnt[m.id] || {}).length ? renovaram : entraram).push(item);
     });
     const sairam = state.madrinhas.filter(m => m.situacao !== "Ativa" && noMes(m.situacaoEm, ano, mes))
-      .map(m => ({...linha(m), situacao: m.situacao, data: m.situacaoEm}));
+      .map(m => ({...linha(m), situacao: m.situacao, data: m.situacaoEm, motivo: m.motivoSaida || ""}));
     return {ano, mes, recebido, anterior, previsto, acumulado, previstoAte,
       presentesMes: cobertas.reduce((s,m)=>s+m.presentes,0), presentesPossiveis: devidas.reduce((s,m)=>s+m.presentes,0),
       ativas: at.length, pagaram, naoPagaram, entraram, renovaram, sairam};
@@ -1526,7 +1570,7 @@ dialog form{display:grid;gap:16px;padding:22px}
         <div class="mov">
           <div><b>Entraram (${r.entraram.length})</b>${listaMov(r.entraram, "Nenhuma entrada no mês.", x => `${esc(x.nome)} · ${x.plano === "Anual" ? brl.format(x.valor) + "/ano" : brl.format(x.valor) + "/mês"} · desde ${fmtData(x.data)}`)}</div>
           <div><b>Renovaram (${r.renovaram.length})</b>${listaMov(r.renovaram, "Nenhuma anuidade renovada.", x => `${esc(x.nome)} · ${brl.format(x.valor)} · ${fmtData(x.data)}`)}</div>
-          <div><b>Encerraram ou pausaram (${r.sairam.length})</b>${listaMov(r.sairam, "Nenhuma saída no mês.", x => `${esc(x.nome)} · ${esc(x.situacao.toLowerCase())} em ${fmtData(x.data)}`)}</div>
+          <div><b>Encerraram ou pausaram (${r.sairam.length})</b>${listaMov(r.sairam, "Nenhuma saída no mês.", x => `${esc(x.nome)} · ${x.situacao === "Encerrada" ? "saiu" : esc(x.situacao.toLowerCase())} em ${fmtData(x.data)}${x.motivo ? " · " + esc(x.motivo.toLowerCase()) : ""}`)}</div>
         </div>
       </section>`;
   }
@@ -1651,7 +1695,7 @@ dialog form{display:grid;gap:16px;padding:22px}
     const movs = [
       ["Entraram", r.entraram.map(x => `${x.nome} · ${brl.format(x.valor)}${x.plano === "Anual" ? "/ano" : "/mês"} · desde ${fmtData(x.data)}`)],
       ["Renovaram", r.renovaram.map(x => `${x.nome} · ${brl.format(x.valor)} · ${fmtData(x.data)}`)],
-      ["Encerraram ou pausaram", r.sairam.map(x => `${x.nome} · ${x.situacao.toLowerCase()} em ${fmtData(x.data)}`)]
+      ["Encerraram ou pausaram", r.sairam.map(x => `${x.nome} · ${x.situacao === "Encerrada" ? "saiu" : x.situacao.toLowerCase()} em ${fmtData(x.data)}${x.motivo ? " · " + x.motivo.toLowerCase() : ""}`)]
     ];
     quebra(20); txt("Movimento das madrinhas", M, y, {s: 13, b: 1}); y += 7;
     movs.forEach(([t, itens]) => {
@@ -1678,6 +1722,66 @@ dialog form{display:grid;gap:16px;padding:22px}
     } finally { b.disabled = false; b.textContent = txtBtn; }
   }
 
+  // ---------- Ex-madrinhas ----------
+  const exMadrinhas = () => state.madrinhas.filter(m => m.situacao === "Encerrada");
+  const pagoRegistrado = m => [state.pagamentos[m.id], state.pagAnt[m.id]].reduce((s,p) => s + Object.values(p || {}).reduce((t,x) => t + (Number(x.valor) || 0), 0), 0);
+  function mesesEntre(a, b){
+    const d1 = parseData(a), d2 = parseData(b); if (!d1 || !d2) return null;
+    return Math.max(1, (d2.getFullYear() - d1.getFullYear()) * 12 + d2.getMonth() - d1.getMonth() + 1);
+  }
+  let exConfirma = null, exT;
+  function renderEx(){
+    if (!$("ex-list")) return;
+    const ok = podeGravar(), dis = ok ? "" : " disabled";
+    const todas = exMadrinhas();
+    const q = $("eq").value, mot = $("emot").value;
+    const lista = todas.filter(m => buscaBate(m, q) && (!mot || (m.motivoSaida || "Não informado") === mot))
+      .sort((a,b) => (b.situacaoEm || "").localeCompare(a.situacaoEm || "") || a.nome.localeCompare(b.nome, "pt-BR"));
+    const perdaMensal = todas.reduce((s,m) => s + (m.plano === "Anual" ? valorAnual(m) / 12 : m.valor), 0);
+    $("ex-resumo").innerHTML = todas.length
+      ? `<span class="chip neutral">${plural(todas.length, "ex-madrinha", "ex-madrinhas")}</span> Juntas contribuíam com ${brl.format(perdaMensal)} por mês e ${plural(todas.reduce((s,m)=>s+m.presentes,0), "presente", "presentes")}.`
+      : "";
+    $("ex-list").innerHTML = lista.length ? lista.map(m => {
+      const tempo = mesesEntre(m.inicio, m.situacaoEm), pago = pagoRegistrado(m), conf = exConfirma === m.id;
+      return `<div class="card ex">
+        <span class="card-h"><span class="card-top"><span class="avatar" aria-hidden="true">${esc(iniciais(m.nome))}</span>
+          <span><b>${esc(m.nome.trim())}</b><small>${m.plano === "Anual" ? "Anual · " + brl.format(valorAnual(m)) + "/ano" : "Mensal · " + brl.format(m.valor) + "/mês"}${m.meio ? " · " + esc(m.meio) : ""}</small></span></span></span>
+        <span class="ex-info">
+          <span>${m.inicio ? `Madrinha de ${fmtData(m.inicio)} a ${fmtData(m.situacaoEm) || "—"}${tempo ? ` · ${plural(tempo, "mês", "meses")}` : ""}` : `Saiu em ${fmtData(m.situacaoEm) || "data não registrada"}`}</span>
+          <span><b>${esc(m.motivoSaida || "Motivo não informado")}</b>${m.obsSaida ? ` · ${esc(m.obsSaida)}` : ""}</span>
+          <span>${pago ? `${brl.format(pago)} em pagamentos registrados (${state.ano - 1}–${state.ano})` : "Nenhum pagamento registrado em " + (state.ano - 1) + "–" + state.ano}</span>
+          <span class="num">${esc(m.contato || "Sem contato")}</span>
+        </span>
+        <span class="ex-acts">
+          <button class="btn sm" type="button" data-ficha="${esc(m.id)}">Ver ficha</button>
+          <button class="btn sm primary" type="button" data-reativar="${esc(m.id)}"${dis}>Reativar</button>
+          <button class="btn sm danger" type="button" data-excluir="${esc(m.id)}"${dis}${conf ? " data-confirm" : ""}>${conf ? "Confirmar: apagar tudo" : "Excluir de vez"}</button>
+        </span>
+      </div>`;
+    }).join("") : `<p class="empty" style="grid-column:1/-1">${todas.length ? "Ninguém encontrado com esses filtros." : "Nenhuma ex-madrinha ainda. Quem for retirada da lista aparece aqui."}</p>`;
+  }
+  $("emot").innerHTML = `<option value="">Todos</option>` + MOTIVOS.map(x => `<option>${x}</option>`).join("") + `<option>Não informado</option>`;
+  $("eq").addEventListener("input", debounce(renderEx, 120));
+  $("emot").addEventListener("change", renderEx);
+  $("ex-list").addEventListener("click", e => {
+    const re = e.target.closest("[data-reativar]");
+    if (re && !re.disabled){
+      const m = state.madrinhas.find(x => x.id === re.dataset.reativar); if (!m) return;
+      // Volta como nova assinatura: a mensal recomeça hoje, sem cobrar os meses em que esteve fora.
+      const campos = {situacao: "Ativa", situacaoEm: isoData(hoje), motivoSaida: "", obsSaida: ""};
+      if (m.plano === "Mensal") campos.inicio = isoData(hoje);
+      salvarMadrinha(m, campos, `${m.nome.trim()} voltou a ser madrinha.`);
+      return;
+    }
+    const ex = e.target.closest("[data-excluir]");
+    if (ex && !ex.disabled){
+      const m = state.madrinhas.find(x => x.id === ex.dataset.excluir); if (!m) return;
+      clearTimeout(exT);
+      if (exConfirma !== m.id){ exConfirma = m.id; renderEx(); exT = setTimeout(() => { exConfirma = null; renderEx(); }, 5000); return; }
+      exConfirma = null; excluirDeVez(m);
+    }
+  });
+
   // ---------- Estrutura: abas, status, render ----------
   const podeGravar = () => state.podeEditar && state.fonte === "db";
   function renderAbas(){
@@ -1693,6 +1797,7 @@ dialog form{display:grid;gap:16px;padding:22px}
     $("b-pag").hidden = !abertas; $("b-pag").textContent = abertas; $("b-pag").title = `${abertas} em aberto no mês`;
     $("b-ren").hidden = !ren; $("b-ren").textContent = ren;
     $("b-mad").textContent = ativas().length;
+    const nEx = exMadrinhas().length; $("b-ex").hidden = !nEx; $("b-ex").textContent = nEx;
     $("yl").textContent = state.ano;
   }
   function renderStatus(){
@@ -1708,7 +1813,7 @@ dialog form{display:grid;gap:16px;padding:22px}
     renderAbas();
     renderKpis(); renderTodo(); renderChart(); renderComp(); renderReg();
     renderPagamentos(); renderRenovacoes(); renderAnuidades(); renderMadrinhas();
-    renderRelatorio();
+    renderEx(); renderRelatorio();
     if (state.ficha) renderFicha();
     renderStatus();
   }
@@ -1886,15 +1991,7 @@ dialog form{display:grid;gap:16px;padding:22px}
     }
     const en = e.target.closest("button[data-encerrar]");
     if (en && !en.disabled){
-      const m = state.madrinhas.find(x => x.id === en.dataset.encerrar); if (!m) return;
-      clearTimeout(encerrarT);
-      if (encerrarPendente !== m.id){
-        encerrarPendente = m.id; renderRenovacoes();
-        encerrarT = setTimeout(() => { encerrarPendente = null; renderRenovacoes(); }, 5000);
-        return;
-      }
-      encerrarPendente = null;
-      salvarMadrinha(m, {situacao: "Encerrada", situacaoEm: isoData(hoje)}, `${m.nome.trim()}: assinatura encerrada.`);
+      const m = state.madrinhas.find(x => x.id === en.dataset.encerrar); if (m) abrirSaida(m);
     }
   });
 
@@ -1918,9 +2015,7 @@ dialog form{display:grid;gap:16px;padding:22px}
     const ok = podeGravar();
     ["f-nome","f-plano","f-valor","f-pres","f-sit","f-cont","f-meio","f-ini","f-fim"].forEach(id => $(id).disabled = !ok);
     $("dlg-save").hidden = !ok;
-    $("dlg-del").hidden = !(ok && m);
-    delete $("dlg-del").dataset.confirm;
-    $("dlg-del").textContent = "Excluir madrinha";
+    $("dlg-del").hidden = !(ok && m && m.situacao !== "Encerrada");
     $("dlg-note").textContent = ok ? "" : "Este painel está em modo leitura.";
     ajustarDatas();
     $("dlg").showModal();
@@ -1946,17 +2041,31 @@ dialog form{display:grid;gap:16px;padding:22px}
     $("f-fim").setCustomValidity("");
   });
   $("f-fim").addEventListener("input", e => e.target.setCustomValidity(""));
-  let delT;
-  $("dlg-del").addEventListener("click", async () => {
-    const b = $("dlg-del"), m = editando;
-    if (!m || !podeGravar()) return;
-    clearTimeout(delT);
-    if (!b.dataset.confirm){
-      b.dataset.confirm = "1"; b.textContent = "Confirmar exclusão";
-      delT = setTimeout(() => { delete b.dataset.confirm; b.textContent = "Excluir madrinha"; }, 5000);
-      return;
-    }
-    $("dlg").close(); if ($("ficha").open) $("ficha").close();
+  $("dlg-del").addEventListener("click", () => {
+    const m = editando; if (!m || !podeGravar()) return;
+    $("dlg").close(); abrirSaida(m);
+  });
+  // Saída: a madrinha vira ex-madrinha, com data e motivo. Nada é apagado.
+  let saindo = null;
+  function abrirSaida(m){
+    if (!podeGravar()) return;
+    saindo = m;
+    $("saida-nome").textContent = m.nome.trim();
+    $("s-data").value = isoData(hoje); $("s-data").max = isoData(hoje);
+    $("s-motivo").value = MOTIVOS[0]; $("s-obs").value = "";
+    $("dlg-saida").showModal();
+  }
+  $("s-motivo").innerHTML = MOTIVOS.map(x => `<option>${x}</option>`).join("");
+  $("saida-cancel").addEventListener("click", () => $("dlg-saida").close());
+  $("saida-form").addEventListener("submit", e => {
+    e.preventDefault();
+    const m = saindo; if (!m || !parseData($("s-data").value)) return;
+    $("dlg-saida").close(); if ($("ficha").open) $("ficha").close();
+    salvarMadrinha(m, {situacao: "Encerrada", situacaoEm: $("s-data").value, motivoSaida: $("s-motivo").value, obsSaida: $("s-obs").value.trim()},
+      `${m.nome.trim()} foi para Ex-madrinhas.`);
+  });
+  // Exclusão definitiva (só pela aba Ex-madrinhas): apaga o cadastro e os pagamentos.
+  async function excluirDeVez(m){
     const nome = m.nome.trim();
     state.madrinhas = state.madrinhas.filter(x => x.id !== m.id);
     delete state.pagamentos[m.id]; delete state.pagAnt[m.id];
@@ -1965,9 +2074,9 @@ dialog form{display:grid;gap:16px;padding:22px}
       await gravar(`madrinhas/${m.id}`, ref => ref.delete());
       const pags = await state.db.collection("pagamentos").where("madrinha","==",m.id).get();
       for (const d of pags.docs) await gravar(`pagamentos/${d.id}`, ref => ref.delete());
-      toast(`${nome} foi excluída do painel.`);
+      toast(`${nome} foi excluída de vez.`);
     } catch (e) { erroGravacao(e); }
-  });
+  }
   const slug = s => semAcento(s).replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,60) || "madrinha";
   $("dlg-form").addEventListener("submit", e => {
     e.preventDefault();
