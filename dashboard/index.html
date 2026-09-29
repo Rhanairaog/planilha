@@ -349,6 +349,11 @@ dialog form{display:grid;gap:16px;padding:22px}
 .toast{display:flex;align-items:center;gap:14px}
 .toast-btn{background:none;border:0;color:inherit;font-weight:700;text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:0}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.cell[data-s="auto"]{background:var(--good);color:var(--surface);border-color:var(--good);opacity:.8}
+.cell[data-s="sched"]{border:1.5px dashed var(--good);color:var(--good);background:var(--good-soft)}
+.strip i[data-s="auto"]{background:var(--good);opacity:.8}
+.strip i[data-s="sched"]{background:var(--good-soft);box-shadow:inset 0 0 0 1px var(--good)}
+.tag-sem{display:inline-flex;align-items:center;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:1px 7px;border-radius:999px;background:var(--accent-soft);color:var(--accent);vertical-align:1px}
 /* Relatório */
 .fchip[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
 .rel-status{font-size:13.5px;color:var(--ink-2);display:flex;flex-wrap:wrap;gap:8px;align-items:center}
@@ -548,7 +553,7 @@ dialog form{display:grid;gap:16px;padding:22px}
       <div class="toolbar">
         <div class="field"><label for="q">Buscar</label><input id="q" type="search" placeholder="Nome ou telefone" autocomplete="off"></div>
         <div class="field"><label for="fp">Plano</label>
-          <select id="fp"><option value="">Todos</option><option>Mensal</option><option>Anual</option></select></div>
+          <select id="fp"><option value="">Todos</option><option>Mensal</option><option>Semestral</option><option>Anual</option></select></div>
         <div class="field"><label for="fs">Situação</label>
           <select id="fs"><option value="Ativa">Ativas</option><option value="">Todas</option><option>Pausada</option><option>Encerrada</option></select></div>
         <div class="field"><label for="fmeio">Meio</label>
@@ -563,6 +568,7 @@ dialog form{display:grid;gap:16px;padding:22px}
         <span><i class="cell" data-s="open">!</i>Em aberto</span>
         <span><i class="cell" data-s="covered">A</i>Coberto pela anuidade</span>
         <span><i class="cell" data-s="due">R</i>Renovação prevista</span>
+        <span><i class="cell" data-s="sched">↻</i>Pix agendado (semestral)</span>
         <span><i class="cell" data-s="pre">–</i>Antes do início</span>
         <span><i class="sw anual"></i>Madrinha anual</span>
         <span><i class="cell" data-s="future"></i>Mês futuro</span>
@@ -715,7 +721,7 @@ dialog form{display:grid;gap:16px;padding:22px}
     </div>
     <div class="fgrid">
       <div class="f full"><label for="f-nome">Nome</label><input id="f-nome" required maxlength="80"></div>
-      <div class="f"><label for="f-plano">Plano</label><select id="f-plano"><option>Mensal</option><option>Anual</option></select></div>
+      <div class="f"><label for="f-plano">Plano</label><select id="f-plano"><option>Mensal</option><option>Semestral</option><option>Anual</option></select></div>
       <div class="f"><label for="f-valor">Valor (R$)</label><input id="f-valor" type="number" min="0" step="1" required></div>
       <div class="f"><label for="f-pres">Presentes</label><input id="f-pres" type="number" min="0" step="1" required></div>
       <div class="f"><label for="f-sit">Situação</label><select id="f-sit"><option>Ativa</option><option>Pausada</option><option>Encerrada</option></select></div>
@@ -841,14 +847,40 @@ dialog form{display:grid;gap:16px;padding:22px}
   }
   const ativas = () => state.madrinhas.filter(m => m.situacao === "Ativa");
   const mesesPassados = () => state.ano < hoje.getFullYear() ? 12 : state.ano > hoje.getFullYear() ? 0 : hoje.getMonth() + 1;
-  const grupoDe = m => m.plano === "Anual" ? "Anual" : "Mensal-" + m.valor;
-  const nomeGrupo = g => g === "Anual" ? "Plano anual" : `Mensal de ${brl.format(Number(g.split("-")[1]))}`;
+  const grupoDe = m => m.plano === "Anual" ? "Anual" : m.plano + "-" + m.valor;
+  const nomeGrupo = g => g === "Anual" ? "Plano anual" : `${g.split("-")[0]} de ${brl.format(Number(g.split("-")[1]))}`;
+  // Mensal e semestral (Pix mensal agendado por 6 meses) seguem a mesma lógica mês a mês.
+  const ehMensal = m => m.plano !== "Anual";
   const iniciais = nome => nome.trim().split(/\s+/).filter(p => /^[\p{L}]/u.test(p)).slice(0,2).map(p => p[0].toUpperCase()).join("") || "?";
   function pagosDe(m){ return state.pagamentos[m.id] || {}; }
   const primeiroMes = p => { const k = Object.keys(p || {}); return k.length ? Math.min(...k.map(Number)) : 0; };
   function mesAnuidade(m){ return primeiroMes(pagosDe(m)); }
   function mesAnuidadeAnt(m){ return primeiroMes(state.pagAnt[m.id]); }
-  function totalPago(m){ return Object.values(pagosDe(m)).reduce((s,p)=>s + (Number(p.valor)||0), 0); }
+  function totalPago(m){
+    if (m.plano === "Anual") return Object.values(pagosDe(m)).reduce((s,p)=>s + (Number(p.valor)||0), 0);
+    let t = 0; for (let i = 1; i <= 12; i++){ const p = pagoNoMes(m, i); if (p) t += Number(p.valor) || 0; } return t;
+  }
+  // Semestral: cada início registrado cobre 6 meses de Pix agendado.
+  function agendado(m, ano, mes){
+    if (m.plano !== "Semestral") return false;
+    return (m.semestres || []).some(ini => {
+      const d = parseData(ini); if (!d) return false;
+      const k = (ano - d.getFullYear()) * 12 + (mes - d.getMonth() - 1);
+      return k >= 0 && k < 6;
+    });
+  }
+  function fimAgendamento(m){
+    let ult = null;
+    (m.semestres || []).forEach(ini => { const d = parseData(ini); if (!d) return; const f = new Date(d.getFullYear(), d.getMonth() + 6, 0); if (!ult || f > ult) ult = f; });
+    return ult ? isoData(ult) : "";
+  }
+  // Pagamento que conta no mês (mensal/semestral): marcado à mão, ou Pix agendado já vencido que não falhou.
+  function pagoNoMes(m, mes){
+    const p = pagosDe(m)[mes];
+    if (p && !p.falhou) return p;
+    if (!p && agendado(m, state.ano, mes) && mes <= mesesPassados()) return {valor: m.valor, em: "", auto: true};
+    return null;
+  }
   // Quanto a madrinha contribui por ano, respeitando se o valor anual foi informado por ano ou por mês.
   function valorAnual(m){ return m.plano === "Anual" ? (m.unidadeValor === "mes" ? m.valor * 12 : m.valor) : m.valor * 12; }
   function vencimento(m){
@@ -874,7 +906,7 @@ dialog form{display:grid;gap:16px;padding:22px}
       return (vencimento(m) || 1) <= n ? 1 : 0;
     }
     let c = 0; const p = pagosDe(m);
-    for (let i = mesInicio(m); i <= n; i++) if (!p[i]) c++;
+    for (let i = mesInicio(m); i <= n; i++) if (estadoCelula(m, i) === "open") c++;
     return c;
   }
   // A madrinha conta no mês (ano, mes) se está ativa, ou se saiu depois dele.
@@ -902,13 +934,15 @@ dialog form{display:grid;gap:16px;padding:22px}
   }
   function estadoCelula(m, mes){
     if (!contaNoMes(m, state.ano, mes)) return "out";
-    if (pagosDe(m)[mes]) return "paid";
-    if (m.plano === "Mensal" && mes < mesInicio(m)) return "pre";
+    const pg = pagosDe(m)[mes];
+    if (pg && !pg.falhou) return "paid";
+    if (m.plano === "Semestral" && !pg && agendado(m, state.ano, mes)) return mes <= mesesPassados() ? "auto" : "sched";
+    if (ehMensal(m) && mes < mesInicio(m)) return "pre";
     if (m.plano === "Anual") return estadoAnual(m, mes);
     return mes <= mesesPassados() ? "open" : "future";
   }
-  const ROTULO = {out:"Depois da saída",paid:"Pago",open:"Em aberto",covered:"Coberto pela anuidade",future:"Mês futuro",idle:"Sem cobrança",due:"Renovação prevista",pre:"Antes do início da assinatura"};
-  const SIMBOLO = {out:"–",paid:"✓",open:"!",covered:"A",future:"",idle:"",due:"R",pre:"–"};
+  const ROTULO = {auto:"Pago (Pix agendado)",sched:"Pix agendado",out:"Depois da saída",paid:"Pago",open:"Em aberto",covered:"Coberto pela anuidade",future:"Mês futuro",idle:"Sem cobrança",due:"Renovação prevista",pre:"Antes do início da assinatura"};
+  const SIMBOLO = {auto:"✓",sched:"↻",out:"–",paid:"✓",open:"!",covered:"A",future:"",idle:"",due:"R",pre:"–"};
   // Data em que a anuidade foi paga naquele ano. Registros antigos só guardam o mês: usa o dia 1º.
   function dataPagamento(pag, ano){
     const mes = primeiroMes(pag); if (!mes) return "";
@@ -931,6 +965,7 @@ dialog form{display:grid;gap:16px;padding:22px}
       if (r) return isoData(new Date(r.getFullYear(), r.getMonth(), r.getDate() - 1));
       return m.fim || "";
     }
+    if (m.plano === "Semestral" && fimAgendamento(m)) return fimAgendamento(m);
     const ult = ultimoMes(pagosDe(m));
     if (ult) return fimDoMes(state.ano, ult);
     const ultAnt = ultimoMes(state.pagAnt[m.id]);
@@ -941,10 +976,10 @@ dialog form{display:grid;gap:16px;padding:22px}
   // Entra no aviso de "assinaturas acabando": anual a 15 dias do fim; mensal só depois que o mês pago acabou.
   function acabando(m){
     const d = diasParaFim(m);
-    return d !== null && (m.plano === "Anual" ? d <= AVISO_DIAS : d < 0);
+    return d !== null && (m.plano === "Mensal" ? d < 0 : d <= AVISO_DIAS);
   }
   // Falta uma data importante: na mensal, o início (sem ele cobra desde janeiro); na anual, o pagamento.
-  const semData = m => m.plano === "Mensal" ? !parseData(m.inicio) : !parseData(fimEfetivo(m));
+  const semData = m => ehMensal(m) ? !parseData(m.inicio) : !parseData(fimEfetivo(m));
   function diasParaFim(m){
     const f = parseData(fimEfetivo(m)); if (!f) return null;
     return Math.round((f - new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate())) / DIA);
@@ -972,7 +1007,7 @@ dialog form{display:grid;gap:16px;padding:22px}
   // Valor que conta no mês: mensalidades pagas no mês mais a parcela mensal das anuidades.
   function reconhecidoNoMes(mes, parc = parcelasAnuais()){
     let s = parc.porMes[mes];
-    state.madrinhas.forEach(m => { if (m.plano === "Mensal" && contaNoMes(m, state.ano, mes)){ const p = pagosDe(m)[mes]; if (p) s += Number(p.valor) || 0; } });
+    state.madrinhas.forEach(m => { if (ehMensal(m) && contaNoMes(m, state.ano, mes)){ const p = pagoNoMes(m, mes); if (p) s += Number(p.valor) || 0; } });
     return s;
   }
   // Mesmo cálculo para dezembro do ano anterior (comparação de janeiro).
@@ -1009,7 +1044,7 @@ dialog form{display:grid;gap:16px;padding:22px}
   // ---------- Visão geral ----------
   function renderKpis(){
     const at = ativas();
-    const mensais = at.filter(m => m.plano === "Mensal");
+    const mensais = at.filter(ehMensal);
     const anuais = at.filter(m => m.plano === "Anual");
     const mrr = mensais.reduce((s,m)=>s+m.valor,0);
     // Cada madrinha conta a partir do mês de início; anuidades entram em 12 parcelas mensais.
@@ -1078,7 +1113,7 @@ dialog form{display:grid;gap:16px;padding:22px}
 
   let chartMes = -1;
   function renderChart(){
-    const mensais = state.madrinhas.filter(m => m.plano === "Mensal");
+    const mensais = state.madrinhas.filter(ehMensal);
     const base = MESES.map((_,i) => mensais.filter(m => ativaNoMes(m, i + 1)).reduce((s,m)=>s+m.valor,0));
     const prev = base.slice();
     MESES.forEach((_,i) => { prev[i] = previstoMes(i + 1); });
@@ -1262,7 +1297,7 @@ dialog form{display:grid;gap:16px;padding:22px}
     const somaMes = Array(12).fill(0), parcT = parcelasAnuais();
     rows.forEach(m => {
       if (m.plano === "Anual") Object.entries(parcT.porMadrinha[m.id] || {}).forEach(([k,p]) => { somaMes[Number(k)-1] += p.valor; });
-      else Object.entries(pagosDe(m)).forEach(([k,p]) => { if (contaNoMes(m, state.ano, Number(k))) somaMes[Number(k)-1] += Number(p.valor)||0; });
+      else for (let k = 1; k <= 12; k++){ const p = pagoNoMes(m, k); if (p && contaNoMes(m, state.ano, k)) somaMes[k-1] += Number(p.valor)||0; }
     });
     const tot = somaMes.reduce((a,b)=>a+b,0);
     $("tfoot").innerHTML = `<td class="name">Total recebido (${rows.length})</td><td></td><td></td><td></td>` +
@@ -1275,7 +1310,9 @@ dialog form{display:grid;gap:16px;padding:22px}
     const t = telefone(m.contato); if (!t.wa) return "";
     const d = diasParaFim(m), fim = fmtData(fimEfetivo(m)), quando = d < 0 ? `terminou em ${fim}` : d === 0 ? "termina hoje" : `termina em ${fim}`;
     const primeiro = m.nome.trim().split(" ")[0];
-    const msg = m.plano === "Mensal"
+    const msg = m.plano === "Semestral"
+      ? `Olá, ${primeiro}! Aqui é do Instituto Fada Madrinha. O agendamento do seu Pix de madrinha ${d < 0 ? "terminou em " + fim : "termina em " + fim}. Pode agendar por mais 6 meses? Muito obrigada por todo o carinho!`
+      : m.plano === "Mensal"
       ? `Olá, ${primeiro}! Aqui é do Instituto Fada Madrinha. Ainda não registramos a sua contribuição de madrinha de ${MESES_LONGOS[proximoMes(m).mes - 1]}. Se já fez, pode desconsiderar. Muito obrigada por todo o carinho!`
       : `Olá, ${primeiro}! Aqui é do Instituto Fada Madrinha. Sua assinatura de madrinha ${quando}. Podemos contar com você por mais um ano? Muito obrigada por todo o carinho!`;
     return `https://wa.me/${t.wa}?text=${encodeURIComponent(msg)}`;
@@ -1286,9 +1323,9 @@ dialog form{display:grid;gap:16px;padding:22px}
     const d = new Date(f.getFullYear(), f.getMonth() + 1, 1);
     return {ano: d.getFullYear(), mes: d.getMonth() + 1};
   }
-  const rotuloRenovar = m => m.plano === "Anual" ? "Renovar por 12 meses" : `Marcar ${MESES_LONGOS[proximoMes(m).mes - 1]} como pago`;
+  const rotuloRenovar = m => m.plano === "Anual" ? "Renovar por 12 meses" : m.plano === "Semestral" ? "Renovar semestre" : `Marcar ${MESES_LONGOS[proximoMes(m).mes - 1]} como pago`;
   // Quem precisa de cobrança, separado por plano.
-  const mensaisCobrar = () => ativas().filter(m => m.plano === "Mensal" && pendencias(m) > 0)
+  const mensaisCobrar = () => ativas().filter(m => ehMensal(m) && (pendencias(m) > 0 || (m.plano === "Semestral" && acabando(m))))
     .sort((a,b) => pendencias(b) - pendencias(a) || a.nome.localeCompare(b.nome, "pt-BR"));
   const anuaisCobrar = () => ativas().filter(m => m.plano === "Anual" && (acabando(m) || pendencias(m) > 0))
     .sort((a,b) => (diasParaFim(a) ?? -1e9) - (diasParaFim(b) ?? -1e9));
@@ -1313,19 +1350,22 @@ dialog form{display:grid;gap:16px;padding:22px}
     const n = mesesPassados();
 
     // Mensais: meses em aberto até o mês atual, e depois quem saiu ou pausou.
-    const mens = mensaisCobrar(), exM = exNoQuadro().filter(m => m.plano === "Mensal");
+    const mens = mensaisCobrar(), exM = exNoQuadro().filter(ehMensal);
     const totalMens = mens.reduce((s,m) => s + pendencias(m) * m.valor, 0);
     $("ren-m-sub").textContent = [mens.length ? `${plural(mens.length, "madrinha", "madrinhas")} · ${brl.format(totalMens)} em aberto` : "",
       exM.length ? `${exM.length} para convidar a voltar` : ""].filter(Boolean).join(" · ") || "Mensalidades em aberto até o mês atual";
     $("ren-m").innerHTML = (mens.length ? mens.map(m => {
       const pend = pendencias(m), abertos = [];
       for (let i = mesInicio(m); i <= n; i++) if (estadoCelula(m, i) === "open") abertos.push(MESES[i-1].toLowerCase());
+      const sem = m.plano === "Semestral", dF = diasParaFim(m);
+      const chip = pend ? `<span class="chip ${pend > 1 ? "bad" : "warn"}">! ${plural(pend, "mês", "meses")} em aberto</span>`
+        : `<span class="chip warn">Pix agendado ${dF < 0 ? "acabou" : dF === 0 ? "acaba hoje" : "acaba em " + plural(dF, "dia", "dias")}</span>`;
       return `<li class="${pend > 1 ? "venc" : ""}">
-        <span class="chip ${pend > 1 ? "bad" : "warn"}">! ${plural(pend, "mês", "meses")} em aberto</span>
-        <span class="who"><button class="link-name" type="button" data-ficha="${esc(m.id)}">${esc(m.nome.trim())}</button><small>${brl.format(m.valor)}/mês · ${esc(abertos.join(", "))} · ${esc(m.contato)}</small></span>
-        <span class="fim num">Devendo ${brl.format(pend * m.valor)}</span>
+        ${chip}
+        <span class="who"><button class="link-name" type="button" data-ficha="${esc(m.id)}">${esc(m.nome.trim())}</button>${sem ? ' <span class="tag-sem">Semestral</span>' : ""}<small>${brl.format(m.valor)}/mês · ${pend ? esc(abertos.join(", ")) : "agendado até " + fmtData(fimEfetivo(m))} · ${esc(m.contato)}</small></span>
+        <span class="fim num">${pend ? "Devendo " + brl.format(pend * m.valor) : "Renovar o agendamento"}</span>
         <span class="acts">
-          ${btnWa(linkWa(m), "Lembrar")}
+          ${btnWa(pend ? linkWa(m) : linkRenovacao(m), pend ? "Lembrar" : "Pedir novo agendamento")}
           <button class="btn sm" type="button" data-renovar="${esc(m.id)}"${dis}>${esc(rotuloRenovar(m))}</button>
           <button class="btn sm parou" type="button" data-parou="${esc(m.id)}"${dis}>Parou</button>
         </span>
@@ -1453,7 +1493,7 @@ dialog form{display:grid;gap:16px;padding:22px}
             <span><b>${esc(m.nome.trim())}</b><small>${m.plano === "Anual" ? '<span class="tag-anual">Anual</span>' : esc(m.plano)} · ${m.plano === "Anual" ? brl.format(valorAnual(m)) + "/ano" : brl.format(m.valor) + "/mês"}</small></span></span>
         </span>
         <span class="strip" aria-label="Pagamentos de ${state.ano}">${strip}</span>
-        <span class="card-f"><span class="chip ${r.c}">${esc(r.t)}</span>${m.meio ? `<span class="chip neutral">${esc(m.meio)}</span>` : ""}<span>${fim ? (m.plano === "Mensal" ? "pago até " : "até ") + fmtData(fim) : "sem data de início"}</span></span>
+        <span class="card-f"><span class="chip ${r.c}">${esc(r.t)}</span>${m.meio ? `<span class="chip neutral">${esc(m.meio)}</span>` : ""}<span>${fim ? (ehMensal(m) ? "pago até " : "até ") + fmtData(fim) : "sem data de início"}</span></span>
       </button>`;
     }).join("") : `<p class="empty" style="grid-column:1/-1">Nenhuma madrinha encontrada com esses filtros.</p>`;
   }
@@ -1468,7 +1508,7 @@ dialog form{display:grid;gap:16px;padding:22px}
     if (!m){ if ($("ficha").open) $("ficha").close(); return; }
     const ok = podeGravar(), dis = ok ? "" : " disabled";
     const r = resumo(m), fim = fimEfetivo(m), dias = diasParaFim(m), n = mesesPassados();
-    const pagos = Object.keys(pagosDe(m)).length;
+    let pagos = 0; for (let i = 1; i <= 12; i++) if (["paid","auto"].includes(estadoCelula(m, i))) pagos++;
     const hist = [];
     [[state.pagamentos[m.id], state.ano], [state.pagAnt[m.id], state.ano - 1]].forEach(([p, ano]) => {
       Object.entries(p || {}).forEach(([mes, v]) => hist.push({ano, mes:Number(mes), valor:Number(v.valor)||0, em: v.em}));
@@ -1492,7 +1532,7 @@ dialog form{display:grid;gap:16px;padding:22px}
         <div><b class="num">${m.plano === "Anual" ? brl.format(valorAnual(m)) : brl.format(m.valor)}</b><span>${m.plano === "Anual" ? "por ano" : "por mês"}</span></div>
         <div><b class="num">${brl.format(totalPago(m))}</b><span>pago em ${state.ano}</span></div>
         <div><b class="num">${m.plano === "Anual" ? (mesAnuidade(m) ? "Paga" : "Pendente") : `${pagos} de ${mesesDevidos(m, n)}`}</b><span>${m.plano === "Anual" ? `anuidade de ${state.ano}` : `meses pagos até ${n ? MESES_LONGOS[n-1] : "agora"}`}</span></div>
-        <div><b class="num">${fim ? fmtData(fim) : "—"}</b><span>${fim ? (dias < 0 ? `venceu há ${plural(-dias,"dia","dias")}` : `${m.plano === "Mensal" ? "coberta até o fim do mês" : "fim da assinatura"} · ${plural(dias,"dia","dias")}`) : "sem data"}</span></div>
+        <div><b class="num">${fim ? fmtData(fim) : "—"}</b><span>${fim ? (dias < 0 ? `venceu há ${plural(-dias,"dia","dias")}` : `${m.plano === "Mensal" ? "coberta até o fim do mês" : m.plano === "Semestral" ? "fim do Pix agendado" : "fim da assinatura"} · ${plural(dias,"dia","dias")}`) : "sem data"}</span></div>
       </div>
       <div style="display:grid;gap:8px">
         <span class="sec-t">Pagamentos de ${state.ano} ${ok ? "· clique para marcar" : ""}</span>
@@ -1512,7 +1552,7 @@ dialog form{display:grid;gap:16px;padding:22px}
         <span class="sec-t">Histórico</span>
         ${hist.length ? `<ul class="hist">${hist.map(h => `<li><span>${cap(MESES_LONGOS[h.mes-1])} de ${h.ano}${h.em && m.plano === "Anual" ? ` · ${fmtData(h.em)}` : ""}</span><b class="num">${brl.format(h.valor)}</b></li>`).join("")}</ul>` : `<p class="dlg-note">Nenhum pagamento registrado em ${state.ano - 1} ou ${state.ano}.</p>`}
         ${m.inicio ? `<p class="dlg-note">Madrinha desde ${fmtData(m.inicio)}.</p>`
-          : m.plano === "Mensal" ? `<p class="dlg-note">Sem data de início: os meses são cobrados desde janeiro. Se ela começou depois, informe a data em Editar cadastro.</p>` : ""}
+          : ehMensal(m) ? `<p class="dlg-note">Sem data de início: os meses são cobrados desde janeiro. Se ela começou depois, informe a data em Editar cadastro.</p>` : ""}
       </div>
       <div class="ficha-acts">
         <button class="btn primary" type="button" data-editar="${esc(m.id)}"${ok ? "" : " disabled"}>Editar cadastro</button>
@@ -1555,7 +1595,7 @@ dialog form{display:grid;gap:16px;padding:22px}
       if (m.plano === "Anual"){
         const p = (parc.porMadrinha[m.id] || {})[mes];
         if (p) pagaram.push({...linha(m), valor: p.valor, em: p.em, parcela: `${p.n}/12 de ${brl.format(p.total)}`});
-      } else if (pagosDe(m)[mes] && contaNoMes(m, ano, mes)) pagaram.push({...linha(m), valor: Number(pagosDe(m)[mes].valor) || 0, em: pagosDe(m)[mes].em || ""});
+      } else if (pagoNoMes(m, mes) && contaNoMes(m, ano, mes)){ const pg = pagoNoMes(m, mes); pagaram.push({...linha(m), valor: Number(pg.valor) || 0, em: pg.em || "", ...(pg.auto ? {parcela: "Pix agendado"} : {})}); }
     });
     pagaram.sort((a,b) => a.nome.localeCompare(b.nome, "pt-BR"));
     const naoPagaram = at.filter(m => estadoCelula(m, mes) === "open").map(m => ({...linha(m), valor: valorNoMes(m)}))
@@ -1564,7 +1604,7 @@ dialog form{display:grid;gap:16px;padding:22px}
     const devidas = at.filter(m => m.plano === "Anual" || mesInicio(m) <= mes);
     const entraram = [], renovaram = [];
     state.madrinhas.forEach(m => {
-      if (m.plano === "Mensal"){ if (noMes(m.inicio, ano, mes)) entraram.push({...linha(m), valor: m.valor, data: m.inicio}); return; }
+      if (ehMensal(m)){ if (noMes(m.inicio, ano, mes)) entraram.push({...linha(m), valor: m.valor, data: m.inicio}); return; }
       const p = pagosDe(m)[mes]; if (!p) return;
       const item = {...linha(m), valor: valorAnual(m), data: dataPagamento(pagosDe(m), ano)};
       (Object.keys(state.pagAnt[m.id] || {}).length ? renovaram : entraram).push(item);
@@ -1587,7 +1627,7 @@ dialog form{display:grid;gap:16px;padding:22px}
     return `<div class="table-wrap rel-tab"><table><thead><tr>${cab.map(c => `<th${c.r ? ' class="r"' : ""}>${c.t}</th>`).join("")}</tr></thead>
       <tbody>${linhas.join("")}</tbody>${rodape ? `<tfoot><tr>${rodape}</tr></tfoot>` : ""}</table></div>`;
   }
-  const tagPlano = pl => pl === "Anual" ? '<span class="tag-anual">Anual</span>' : "Mensal";
+  const tagPlano = pl => pl === "Anual" ? '<span class="tag-anual">Anual</span>' : pl === "Semestral" ? '<span class="tag-sem">Semestral</span>' : "Mensal";
   const listaMov = (itens, vazio, fmt) => itens.length ? `<ul>${itens.map(i => `<li>${fmt(i)}</li>`).join("")}</ul>` : `<p>${vazio}</p>`;
 
   function renderRelatorio(){
@@ -1629,7 +1669,7 @@ dialog form{display:grid;gap:16px;padding:22px}
         <h3>Quem pagou <small>${plural(r.pagaram.length,"madrinha","madrinhas")} · ${brl.format(totPago)}</small></h3>
         ${porMeio(r.pagaram)}
         ${r.pagaram.length ? htmlTabela([{t:"Madrinha"},{t:"Plano"},{t:"Meio"},{t:"Pago em"},{t:"Valor no mês",r:1}],
-          r.pagaram.map(x => `<tr><td>${esc(x.nome)}</td><td>${tagPlano(x.plano)}${x.parcela ? ` <small class="hint">parcela ${esc(x.parcela)}</small>` : ""}</td><td>${esc(x.meio || "—")}</td><td class="num">${fmtData(x.em) || "—"}</td><td class="r num">${brl.format(x.valor)}</td></tr>`),
+          r.pagaram.map(x => `<tr><td>${esc(x.nome)}</td><td>${tagPlano(x.plano)}${x.parcela ? ` <small class="hint">${x.plano === "Anual" ? "parcela " : ""}${esc(x.parcela)}</small>` : ""}</td><td>${esc(x.meio || "—")}</td><td class="num">${fmtData(x.em) || "—"}</td><td class="r num">${brl.format(x.valor)}</td></tr>`),
           `<td colspan="4">Total no mês</td><td class="r num">${brl.format(totPago)}</td>`) : `<p class="empty">Nenhum pagamento marcado em ${nomeMes}.</p>`}
       </section>
       <section class="rel-sec">
@@ -1756,7 +1796,7 @@ dialog form{display:grid;gap:16px;padding:22px}
     const totPago = r.pagaram.reduce((s,x)=>s+x.valor,0), totAberto = r.naoPagaram.reduce((s,x)=>s+x.valor,0);
     tabela("Quem pagou", `${plural(r.pagaram.length,"madrinha","madrinhas")} · ${brl.format(totPago)}`,
       [{t:"Madrinha", w:.3},{t:"Plano", w:.2, plano:1},{t:"Meio", w:.18},{t:"Pago em", w:.14},{t:"Valor no mês", w:.18, r:1}],
-      r.pagaram.map(x => [x.nome, x.parcela ? `Anual ${x.parcela.split(" de ")[0]}` : x.plano, x.meio || "—", fmtData(x.em) || "—", brl.format(x.valor)]), ["Total no mês", brl.format(totPago)]);
+      r.pagaram.map(x => [x.nome, x.plano === "Anual" && x.parcela ? `Anual ${x.parcela.split(" de ")[0]}` : x.plano, x.meio || "—", fmtData(x.em) || "—", brl.format(x.valor)]), ["Total no mês", brl.format(totPago)]);
     if (r.pagaram.length){
       const t = {}; r.pagaram.forEach(x => { const k = x.meio || "Não informado"; t[k] = (t[k] || 0) + x.valor; });
       const linhaMeio = "Por meio de pagamento: " + Object.entries(t).sort((a,b)=>b[1]-a[1]).map(([k,v]) => `${k} ${brl.format(v)}`).join(" · ");
@@ -1815,7 +1855,8 @@ dialog form{display:grid;gap:16px;padding:22px}
   function reativar(m){
     // Volta como nova assinatura: a mensal recomeça hoje, sem cobrar os meses em que esteve fora.
     const campos = {situacao: "Ativa", situacaoEm: isoData(hoje), motivoSaida: "", obsSaida: "", foraQuadro: false};
-    if (m.plano === "Mensal") campos.inicio = isoData(hoje);
+    if (ehMensal(m)) campos.inicio = isoData(hoje);
+    if (m.plano === "Semestral") campos.semestres = [isoData(hoje)];
     salvarMadrinha(m, campos, `${m.nome.trim()} voltou a ser madrinha.`);
   }
   document.addEventListener("click", e => {
@@ -2004,6 +2045,15 @@ dialog form{display:grid;gap:16px;padding:22px}
       .then(() => toast(marcando ? `${m.nome.trim()}: ${MESES_LONGOS[mes-1]} marcado como pago.` : `${m.nome.trim()}: pagamento de ${MESES_LONGOS[mes-1]} removido.`))
       .catch(erroGravacao);
   }
+  // Semestral: clicar num mês agendado marca que o Pix falhou; clicar de novo desfaz.
+  function registrarFalhaPix(m, mes){
+    const ano = state.ano, atual = {...pagosDe(m)}, falhou = !(atual[mes] && atual[mes].falhou);
+    if (falhou) atual[mes] = {falhou: true, em: isoData(hoje)}; else delete atual[mes];
+    state.pagamentos[m.id] = atual; render();
+    return gravar(`pagamentos/${ano}-${m.id}`, ref => ref.set({madrinha: m.id, ano, meses: atual}))
+      .then(() => toast(falhou ? `${m.nome.trim()}: Pix de ${MESES_LONGOS[mes-1]} marcado como não recebido.` : `${m.nome.trim()}: Pix de ${MESES_LONGOS[mes-1]} volta a contar como pago.`))
+      .catch(erroGravacao);
+  }
   // Registra a anuidade pela data do pagamento (ou remove a do ano, com data vazia).
   function registrarAnuidade(m, iso){
     const d = parseData(iso);
@@ -2064,7 +2114,8 @@ dialog form{display:grid;gap:16px;padding:22px}
       if (c.disabled || !state.podeEditar) return;
       const m = state.madrinhas.find(x => x.id === c.dataset.id); if (!m) return;
       const mes = c.dataset.mes;
-      registrarPagamento(m, mes, !pagosDe(m)[mes]);
+      if (m.plano === "Semestral" && (agendado(m, state.ano, Number(mes)) || (pagosDe(m)[mes] || {}).falhou)) registrarFalhaPix(m, mes);
+      else registrarPagamento(m, mes, !pagosDe(m)[mes]);
       if (!reduzMovimento) document.querySelectorAll(`button.cell[data-id="${CSS.escape(m.id)}"][data-mes="${mes}"]`).forEach(x => x.classList.add("pop"));
       return;
     }
@@ -2080,6 +2131,12 @@ dialog form{display:grid;gap:16px;padding:22px}
     const rn = e.target.closest("button[data-renovar]");
     if (rn && !rn.disabled){
       const m = state.madrinhas.find(x => x.id === rn.dataset.renovar); if (!m) return;
+      if (m.plano === "Semestral"){
+        // Novo agendamento de 6 meses, começando no dia seguinte ao fim do atual.
+        const f = parseData(fimAgendamento(m)), ini = f ? isoData(new Date(f.getFullYear(), f.getMonth(), f.getDate() + 1)) : isoData(hoje);
+        salvarMadrinha(m, {semestres: [...(m.semestres || []), ini]}, `${m.nome.trim()}: Pix agendado renovado até ${fmtData(fimDoMes(parseData(ini).getFullYear(), parseData(ini).getMonth() + 6))}.`);
+        return;
+      }
       if (m.plano === "Mensal"){
         const {ano, mes} = proximoMes(m);
         if (ano !== state.ano){ toast(`Mude o ano para ${ano} no topo para marcar ${MESES_LONGOS[mes-1]}.`); return; }
@@ -2124,9 +2181,11 @@ dialog form{display:grid;gap:16px;padding:22px}
   }
   // Mensal renova todo mês: não tem fim fixo. Anual: fim sugerido em 12 meses.
   function ajustarDatas(){
-    const mensal = $("f-plano").value === "Mensal";
+    const mensal = $("f-plano").value !== "Anual", semestral = $("f-plano").value === "Semestral";
     $("f-fim-box").hidden = mensal;
-    $("f-datas-note").textContent = mensal
+    $("f-datas-note").textContent = semestral
+      ? "Semestral: Pix mensal agendado por 6 meses a partir do início. Esses meses ficam pagos sozinhos; se algum Pix falhar, clique no mês para marcar."
+      : mensal
       ? "A mensal renova todo mês: fica ativa até o fim do último mês pago. Os meses antes do início não são cobrados."
       : "O fim é preenchido com 12 meses após o início. Ao registrar o pagamento em Anuidades, ele é recalculado.";
     if (!mensal && !$("f-fim").value && $("f-ini").value) $("f-fim").value = fimPadrao($("f-ini").value);
@@ -2191,7 +2250,7 @@ dialog form{display:grid;gap:16px;padding:22px}
     const valor = Math.max(0, Math.round(Number($("f-valor").value) || 0));
     const presentes = Math.max(0, Math.round(Number($("f-pres").value) || 0));
     if (!nome){ $("f-nome").focus(); return; }
-    const inicio = $("f-ini").value, fim = $("f-plano").value === "Mensal" ? "" : $("f-fim").value;
+    const inicio = $("f-ini").value, fim = $("f-plano").value !== "Anual" ? "" : $("f-fim").value;
     if (inicio && fim && fim < inicio){ $("f-fim").setCustomValidity("O fim precisa ser depois do início."); $("f-fim").reportValidity(); return; }
     let id = editando ? editando.id : slug(nome);
     if (!editando && state.madrinhas.some(m => m.id === id)) id += "-" + Math.random().toString(36).slice(2,6);
@@ -2201,6 +2260,12 @@ dialog form{display:grid;gap:16px;padding:22px}
     // Guarda quando a situação mudou, para o movimento do relatório mensal.
     if (!editando || editando.situacao !== doc.situacao) doc.situacaoEm = isoData(hoje);
     if (doc.plano === "Anual" && !Number(doc.mesRenovacao) && parseData(inicio)) doc.mesRenovacao = parseData(inicio).getMonth() + 1;
+    // Semestral: o início do cadastro é o primeiro agendamento de 6 meses.
+    if (doc.plano === "Semestral" && parseData(inicio)){
+      const sem = Array.isArray(doc.semestres) ? doc.semestres.slice() : [];
+      if (!sem.length) sem.push(inicio); else if (sem.length === 1 && editando && editando.inicio !== inicio) sem[0] = inicio;
+      doc.semestres = sem;
+    }
     const novo = {id, ...doc};
     const existe = state.madrinhas.some(m => m.id === id);
     state.madrinhas = existe ? state.madrinhas.map(m => m.id === id ? novo : m) : [...state.madrinhas, novo];
