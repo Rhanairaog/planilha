@@ -181,6 +181,19 @@ dialog::backdrop{background:rgba(10,20,16,.45)}
 .preview table{width:100%;border-collapse:collapse;font-size:13px}
 .preview th,.preview td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
 .preview th{position:sticky;top:0;background:var(--surface-2);font-size:12px}
+.counter{display:inline-flex;align-items:stretch;border:1px solid var(--line-strong);border-radius:9px;overflow:hidden;background:var(--surface);width:max-content}
+.counter button{border:0;background:var(--surface-2);width:38px;font-size:18px;font-weight:700;cursor:pointer;color:var(--ink)}
+.counter button:hover{background:var(--accent-soft);color:var(--accent)}
+.counter input{width:56px;border:0;border-inline:1px solid var(--line);text-align:center;font-family:var(--display);font-size:18px;font-weight:700;background:var(--surface);-moz-appearance:textfield}
+.counter input::-webkit-outer-spin-button,.counter input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.st-choices{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.st-choices label{position:relative;display:grid;gap:2px;border:1px solid var(--line-strong);border-radius:10px;padding:9px 11px;cursor:pointer;background:var(--surface)}
+.st-choices label b{font-size:13.5px;color:var(--pc);display:flex;align-items:center;gap:6px}
+.st-choices label b::before{content:"";width:8px;height:8px;border-radius:2px;background:var(--pc)}
+.st-choices label span{font-size:12px;color:var(--muted)}
+.st-choices input{position:absolute;opacity:0;pointer-events:none}
+.st-choices label:has(input:checked){border-color:var(--pc);background:var(--ps);box-shadow:inset 0 0 0 1px var(--pc)}
+.st-choices label:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:10px;font-size:14px;font-weight:600;box-shadow:var(--shadow-lg);z-index:20}
 .note{font-size:13px;color:var(--ink-2);background:var(--wheat-soft);border-radius:10px;padding:10px 12px}
 @media (prefers-reduced-motion:no-preference){.row,.q-item,.btn{transition:background .15s,border-color .15s}}
@@ -272,6 +285,27 @@ dialog::backdrop{background:rgba(10,20,16,.45)}
         <select class="input" id="i-eng"><option value="">Não informado</option><option value="alto">Alto</option><option value="baixo">Baixo</option></select></label>
       <label class="field full"><span>Responsável pelo contato</span><select class="input" id="i-resp"></select></label>
     </div>
+    <div class="sec">
+      <div><span class="eyebrow">Situação do contato</span><h3 style="margin-top:2px">Em que pé está este cliente?</h3></div>
+      <div class="st-choices" id="i-etapa"></div>
+      <div class="form-grid">
+        <div class="field"><span>Quantas tentativas de contato</span>
+          <div class="counter"><button type="button" data-cnt="-1" aria-label="Diminuir tentativas">−</button><input id="i-qtd" type="number" min="0" max="99" inputmode="numeric" value="0" aria-label="Quantidade de tentativas"><button type="button" data-cnt="1" aria-label="Aumentar tentativas">+</button></div></div>
+        <label class="field" data-show="contato"><span>Data do último contato</span><input class="input" id="i-data" type="date"></label>
+        <div class="field full" data-show="contato"><span>Canal usado</span><div class="choices" id="i-canal"></div></div>
+        <label class="field full" data-show="recusou"><span>Motivo de não renovar</span><select class="input" id="i-motivo"></select></label>
+        <label class="field" data-show="retorno"><span>Próximo retorno</span><input class="input" id="i-retorno" type="date"></label>
+        <label class="field full" data-show="contato"><span>Anotação (o que a pessoa disse)</span><textarea class="input" id="i-nota" rows="2" placeholder="Ex.: pediu para chamar depois da colheita"></textarea></label>
+      </div>
+      <div class="sec" data-show="contato" style="padding-top:10px">
+        <label class="toggle"><input type="checkbox" id="i-oferta"> Ofereci uma oferta de resgate</label>
+        <div class="form-grid" id="iw-oferta" hidden>
+          <label class="field"><span>Qual oferta</span><input class="input" id="i-oferta-desc" list="ofertas-f" placeholder="1º mês com 50% de desconto"></label>
+          <label class="field"><span>Resposta à oferta</span><select class="input" id="i-oferta-res"><option value="">Aguardando</option><option value="sim">Aceitou</option><option value="nao">Recusou</option></select></label>
+        </div>
+      </div>
+    </div>
+    <datalist id="ofertas-f"><option value="1º mês com 50% de desconto"><option value="Trimestral com desconto"><option value="30 dias grátis"><option value="Novo link de pagamento"></datalist>
     <p class="small" id="form-err" style="color:var(--c-rec)" hidden></p>
     <div class="actions" style="justify-content:flex-end">
       <button class="btn" type="button" data-close>Cancelar</button>
@@ -336,6 +370,11 @@ const RESULTADOS = [
 ];
 const RES = Object.fromEntries(RESULTADOS);
 const RES_ETAPA = {sem_resposta:"sem_resposta", conversa:"contatado", recusou:"recusou", recuperado:"recuperado"};
+const ETAPA_RES = {sem_resposta:"sem_resposta", contatado:"conversa", recusou:"recusou", recuperado:"recuperado"};
+const ETAPA_FORM = {a_contatar:"Ainda não entrei em contato", contatado:"Respondeu e vai pensar", sem_resposta:"Tentei e não respondeu", recusou:"Respondeu e não vai renovar", recuperado:"Renovou a assinatura"};
+const qtd = c => Math.max(Number(c.qtdTentativas)||0, (c.tentativas||[]).length);
+const foiContatado = c => qtd(c) > 0 || c.etapa !== "a_contatar";
+const respondeu = c => c.etapa==="contatado" || c.etapa==="recusou" || c.etapa==="recuperado";
 
 /* ---------- estado ---------- */
 const S = {list:[], db:null, user:null, me:null, profiles:{}, filtroEtapa:"", readOnly:false, loaded:false};
@@ -415,15 +454,16 @@ function renderFunil(){
 
 function renderKpis(){
   const tot = S.list.length;
-  const tentados = S.list.filter(c => (c.tentativas||[]).length).length;
-  const responderam = S.list.filter(c => (c.tentativas||[]).some(t => t.resultado!=="sem_resposta")).length;
+  const tentados = S.list.filter(foiContatado).length;
+  const responderam = S.list.filter(respondeu).length;
+  const totTent = S.list.reduce((s,c)=>s+qtd(c),0);
   const rec = S.list.filter(c => c.etapa==="recuperado");
   const risco = S.list.filter(c => c.etapa!=="recuperado" && c.etapa!=="recusou");
   const sumRec = rec.reduce((s,c)=>s+(Number(c.valor)||0),0);
   const sumRisco = risco.reduce((s,c)=>s+(Number(c.valor)||0),0);
   $("kpis").innerHTML = `
     <div class="kpi"><span class="eyebrow">Contatados</span><b class="num">${tentados} <span class="small muted">de ${tot}</span></b><span class="small muted">${pct(tentados,tot)} da lista já recebeu contato</span></div>
-    <div class="kpi"><span class="eyebrow">Taxa de resposta</span><b class="num">${pct(responderam,tentados)}</b><span class="small muted">${responderam} de ${tentados} contatados responderam</span></div>
+    <div class="kpi"><span class="eyebrow">Taxa de resposta</span><b class="num">${pct(responderam,tentados)}</b><span class="small muted">${responderam} de ${tentados} contatados responderam · ${totTent} tentativas no total</span></div>
     <div class="kpi"><span class="eyebrow">Taxa de resgate</span><b class="num k-good">${pct(rec.length,tentados)}</b><span class="small muted">${rec.length} voltaram a assinar</span></div>
     <div class="kpi"><span class="eyebrow">Receita</span><b class="num k-good">${brl(sumRec)}</b><span class="small muted">recuperada · <span class="k-wheat" style="font-weight:600">${brl(sumRisco)}</span> ainda em jogo</span></div>`;
 }
@@ -460,7 +500,7 @@ function renderLista(){
   if(!S.list.length){ $("rows").innerHTML = `<div class="empty"><b>Nenhum cliente lançado ainda.</b><span class="small">Copie as linhas da Central de Churn do app e use “Colar lista do app”, ou adicione um cliente de cada vez.</span><button class="btn primary" type="button" data-act="colar">Colar lista do app</button></div>`; return; }
   if(!l.length){ $("rows").innerHTML = `<div class="empty">Nenhum cliente com esses filtros.</div>`; return; }
   $("rows").innerHTML = l.map(c => {
-    const n = (c.tentativas||[]).length, ult = n ? c.tentativas[n-1] : null;
+    const nh = (c.tentativas||[]).length, ult = nh ? c.tentativas[nh-1] : null, n = qtd(c);
     const st = proxRetornoStatus(c);
     let retorno = "";
     if(c.etapa==="recusou") retorno = `<span class="t2">${esc(MOT[c.motivo]||"Motivo não informado")}</span>`;
@@ -471,7 +511,7 @@ function renderLista(){
       <span class="who"><span class="av">${esc(iniciais(c.nome))}</span><span style="min-width:0"><span class="nm" style="display:block">${esc(c.nome)}</span><span class="em" style="display:block">${esc(c.email||c.telefone||"sem contato")}</span></span></span>
       <span class="cell c-plano">${esc(c.plano||"—")}<br><span class="t2 num">${c.valor?brl(c.valor):""} ${c.engajamento?`<span class="tag ${c.engajamento}">${c.engajamento}</span>`:""}</span></span>
       <span class="cell c-retorno">${retorno}</span>
-      <span class="cell c-ult">${ult ? `${esc(ult.canal)} · ${n} tentativa${n>1?"s":""}<br><span class="t2">${esc(RES[ult.resultado]||"")} em ${fmtData(ult.data)}</span>` : `<span class="t2">Venceu ${fmtData(c.vencimento)}</span>`}</span>
+      <span class="cell c-ult"><b class="num">${n}</b> tentativa${n===1?"":"s"}${ult?` · ${esc(ult.canal)}<br><span class="t2">${esc(RES[ult.resultado]||"")} em ${fmtData(ult.data)}</span>`:`<br><span class="t2">Venceu ${fmtData(c.vencimento)}</span>`}</span>
       <span class="cell">${pill(c.etapa)}</span>
     </button>`;
   }).join("");
@@ -501,7 +541,7 @@ function renderMotivos(){
   $("motivos").innerHTML = barras(items, "--c-rec");
 }
 function renderAprendizado(){
-  const grupo = g => { const l = S.list.filter(c => c.engajamento===g && (c.tentativas||[]).length); const ok = l.filter(c=>c.etapa==="recuperado").length; return {l:l.length, ok}; };
+  const grupo = g => { const l = S.list.filter(c => c.engajamento===g && foiContatado(c)); const ok = l.filter(c=>c.etapa==="recuperado").length; return {l:l.length, ok}; };
   const a = grupo("alto"), b = grupo("baixo");
   $("eng-split").innerHTML = `
     <div class="box"><span class="eyebrow">Engaj. alto</span><b class="num" style="color:var(--c-ok)">${pct(a.ok,a.l)}</b><span class="small muted">${a.ok} de ${a.l} resgatados</span></div>
@@ -545,7 +585,7 @@ function renderFicha(){
       ${c.email?`<code>${esc(c.email)}</code><button class="btn small" type="button" data-copy="${esc(c.email)}">Copiar e-mail</button>`:""}
       ${c.telefone?`<code>${esc(c.telefone)}</code>`:""}
       ${wa?`<a class="btn small" href="${esc(wa)}" target="_blank" rel="noopener">Abrir WhatsApp</a>`:""}
-      ${!ro?`<button class="btn small ghost" type="button" data-act="editar">Editar dados</button>`:""}
+      ${!ro?`<button class="btn small ghost" type="button" data-act="editar">Editar dados e situação</button>`:""}
     </div>
 
     <div class="sec">
@@ -581,7 +621,8 @@ function renderFicha(){
     <datalist id="ofertas"><option value="1º mês com 50% de desconto"><option value="Trimestral com desconto"><option value="30 dias grátis"><option value="Novo link de pagamento"></datalist>
 
     <div class="sec">
-      <h3>Histórico</h3>
+      <div class="panel-h"><h3>Histórico</h3>
+        <span class="toggle">Tentativas: ${ro ? `<b class="num">${qtd(c)}</b>` : `<span class="counter"><button type="button" data-fcnt="-1" aria-label="Diminuir tentativas">−</button><input id="f-qtd" type="number" min="0" max="99" value="${qtd(c)}" aria-label="Quantidade de tentativas" readonly><button type="button" data-fcnt="1" aria-label="Aumentar tentativas">+</button></span>`}</span></div>
       ${tl.length ? `<div class="timeline">${tl.map(t => {
         const et = ET[RES_ETAPA[t.resultado]]||ET.a_contatar;
         return `<div class="tl" style="--tc:var(${et.c})"><b>${esc(RES[t.resultado]||t.resultado)}</b> · ${esc(t.canal)}${t.motivo?` · ${esc(MOT[t.motivo]||t.motivo)}`:""}
@@ -625,6 +666,7 @@ async function registrarTentativa(c0){
   if(res==="recusou" && !motivo){ $("t-err").textContent="Escolha o motivo de não renovar para salvar."; $("t-err").hidden=false; $("t-motivo").focus(); return; }
   const t = {data:$("t-data").value||hojeISO(), canal, resultado:res, nota:$("t-nota").value.trim(), por:S.me||null, em:Date.now()};
   if(res==="recusou") t.motivo = motivo;
+  c.qtdTentativas = qtd(c) + 1;
   c.tentativas = [...(c.tentativas||[]), t];
   c.etapa = RES_ETAPA[res];
   c.canalUltimo = canal;
@@ -655,9 +697,43 @@ function abrirForm(id){
   $("i-venc").value = c.vencimento||""; $("i-motapp").value = c.motivoApp||""; $("i-eng").value = c.engajamento||"";
   $("i-resp").innerHTML = opcoesResponsavel(id ? c.responsavel : S.me);
   $("form-err").hidden = true;
+  const etapa = c.etapa || "a_contatar";
+  $("i-etapa").innerHTML = ETAPAS.map(e => `<label style="--pc:var(${e.c});--ps:var(${e.s})"><input type="radio" name="i-etapa" value="${e.id}" ${e.id===etapa?"checked":""}><b>${e.nome}</b><span>${ETAPA_FORM[e.id]}</span></label>`).join("");
+  const ult = (c.tentativas||[]).slice(-1)[0] || {};
+  $("i-canal").innerHTML = CANAIS.map(k => `<label><input type="radio" name="i-canal" value="${k}" ${k===(ult.canal||c.canalUltimo||"WhatsApp")?"checked":""}>${k}</label>`).join("");
+  $("i-motivo").innerHTML = `<option value="">Escolha o motivo</option>` + MOTIVOS.map(([k,v]) => `<option value="${k}" ${k===c.motivo?"selected":""}>${v}</option>`).join("");
+  $("i-qtd").value = id ? qtd(c) : 0;
+  $("i-data").value = ult.data || hojeISO();
+  $("i-retorno").value = c.proximoRetorno || addDias(2);
+  $("i-nota").value = "";
+  $("i-oferta").checked = !!(c.oferta && c.oferta.ofereceu);
+  $("iw-oferta").hidden = !$("i-oferta").checked;
+  $("i-oferta-desc").value = (c.oferta && c.oferta.descricao) || "";
+  $("i-oferta-res").value = c.oferta && c.oferta.aceita===true ? "sim" : c.oferta && c.oferta.aceita===false ? "nao" : "";
+  syncForm();
   if($("d-ficha").open) $("d-ficha").close();
   $("d-form").showModal(); $("i-nome").focus();
 }
+function etapaForm(){ const r = document.querySelector('input[name="i-etapa"]:checked'); return r ? r.value : "a_contatar"; }
+function syncForm(){
+  const e = etapaForm();
+  document.querySelectorAll("#form [data-show]").forEach(el => {
+    const k = el.dataset.show;
+    el.hidden = k==="contato" ? e==="a_contatar" : k==="recusou" ? e!=="recusou" : k==="retorno" ? !(e==="contatado"||e==="sem_resposta") : false;
+  });
+}
+$("form").addEventListener("change", ev => {
+  if(ev.target.name==="i-etapa"){
+    const q = $("i-qtd");
+    if(ev.target.value!=="a_contatar" && !(Number(q.value)>0)) q.value = 1;
+    syncForm();
+  }
+  if(ev.target.id==="i-oferta") $("iw-oferta").hidden = !ev.target.checked;
+});
+$("form").addEventListener("click", ev => {
+  const b = ev.target.closest("[data-cnt]"); if(!b) return;
+  const q = $("i-qtd"); q.value = Math.min(99, Math.max(0, (parseInt(q.value,10)||0) + Number(b.dataset.cnt)));
+});
 $("form").addEventListener("submit", async ev => {
   ev.preventDefault();
   const nome = $("i-nome").value.trim(), email = $("i-email").value.trim().toLowerCase();
@@ -667,7 +743,28 @@ $("form").addEventListener("submit", async ev => {
   const base = formId ? structuredClone(S.list.find(x=>x._id===formId)) : {etapa:"a_contatar", tentativas:[], criadoPor:S.me||null, criadoEm:Date.now()};
   const id = formId || docId({email});
   if(!formId && S.list.some(x=>x._id===id)) return err("Já existe um cliente com esse e-mail no painel.");
+  const etapa = etapaForm(), motivo = $("i-motivo").value;
+  if(etapa==="recusou" && !motivo){ $("i-motivo").focus(); return err("Escolha o motivo de não renovar para salvar."); }
+  const etapaAntes = base.etapa;
   Object.assign(base, {_id:id, nome, email, telefone:$("i-tel").value.trim(), plano:$("i-plano").value.trim(), valor:parseValor($("i-valor").value), vencimento:$("i-venc").value, motivoApp:$("i-motapp").value.trim(), engajamento:$("i-eng").value, responsavel:$("i-resp").value});
+  base.etapa = etapa;
+  base.tentativas = base.tentativas || [];
+  const nota = $("i-nota").value.trim(), canal = (document.querySelector('input[name="i-canal"]:checked')||{}).value || "Outro";
+  if(etapa!=="a_contatar"){
+    base.canalUltimo = canal;
+    if(etapa!==etapaAntes || nota){
+      const t = {data:$("i-data").value||hojeISO(), canal, resultado:ETAPA_RES[etapa], nota, por:S.me||null, em:Date.now()};
+      if(etapa==="recusou") t.motivo = motivo;
+      base.tentativas = [...base.tentativas, t];
+    }
+    if(etapa==="recusou"){ base.motivo = motivo; if(nota) base.motivoDetalhe = nota; }
+    if(etapa==="recuperado" && etapa!==etapaAntes) base.recuperadoEm = $("i-data").value||hojeISO();
+    base.proximoRetorno = (etapa==="contatado"||etapa==="sem_resposta") ? ($("i-retorno").value||"") : "";
+    if($("i-oferta").checked){ const r = $("i-oferta-res").value; base.oferta = {ofereceu:true, descricao:$("i-oferta-desc").value.trim(), aceita: r==="sim" ? true : r==="nao" ? false : (etapa==="recuperado" ? true : null)}; }
+    else base.oferta = {ofereceu:false, descricao:"", aceita:null};
+  } else base.proximoRetorno = "";
+  base.qtdTentativas = Math.min(99, Math.max(0, parseInt($("i-qtd").value,10)||0));
+  if(base.qtdTentativas < base.tentativas.length) base.qtdTentativas = base.tentativas.length;
   $("form-save").disabled = true;
   try{ await salvarCliente(base); $("d-form").close(); toast(formId ? "Dados atualizados." : "Cliente adicionado."); if(formId) abrirFicha(id); }catch(e){}
   $("form-save").disabled = false;
@@ -733,6 +830,12 @@ document.addEventListener("click", async ev => {
   const cp = ev.target.closest("[data-copy]"); if(cp){ copiar(cp.dataset.copy, "E-mail copiado."); return; }
   const set = ev.target.closest("[data-etapa-set]");
   if(set){ const c = structuredClone(S.list.find(x=>x._id===fichaId)); if(!c || c.etapa===set.dataset.etapaSet) return; c.etapa = set.dataset.etapaSet; try{ await salvarCliente(c); toast("Etapa alterada para “"+ET[c.etapa].nome+"”."); }catch(e){} return; }
+  const fc = ev.target.closest("[data-fcnt]");
+  if(fc){ const c = structuredClone(S.list.find(x=>x._id===fichaId)); if(!c) return;
+    const novo = Math.min(99, Math.max((c.tentativas||[]).length, qtd(c) + Number(fc.dataset.fcnt)));
+    if(novo===qtd(c)){ toast("O número não pode ficar abaixo das tentativas do histórico."); return; }
+    c.qtdTentativas = novo; if($("f-qtd")) $("f-qtd").value = novo;
+    try{ await salvarCliente(c); }catch(e){} return; }
   const act = ev.target.closest("[data-act]"); if(!act) return;
   const a = act.dataset.act;
   if(a==="colar") abrirColar();
