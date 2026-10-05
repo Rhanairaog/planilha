@@ -1,0 +1,787 @@
+<title>Resgate AgroBrazil</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: painel de operação — faixa de números do funil, fila "para hoje", lista filtrável e ficha lateral de cada cliente. */
+:root{
+  --bg:#F2F5F3; --surface:#FFFFFF; --surface-2:#F7F9F8;
+  --ink:#14211C; --ink-2:#3E5048; --muted:#66786F;
+  --line:#DDE5E1; --line-strong:#BFCCC6;
+  --accent:#1D5E48; --accent-soft:#DDEDE6; --on-accent:#FFFFFF;
+  --wheat:#8F6514; --wheat-soft:#F5EAD3;
+  --c-novo:#5B6B64; --c-novo-soft:#E7ECEA;
+  --c-cont:#1F5E9C; --c-cont-soft:#DFEAF6;
+  --c-sem:#8A5A00; --c-sem-soft:#F8EBCF;
+  --c-rec:#A3301F; --c-rec-soft:#F8E0DB;
+  --c-ok:#1C7A45; --c-ok-soft:#DAF1E3;
+  --shadow:0 1px 2px rgba(20,33,28,.06),0 6px 20px rgba(20,33,28,.06);
+  --shadow-lg:0 18px 60px rgba(20,33,28,.25);
+  --display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
+  --body:"Instrument Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0D1512; --surface:#141F1B; --surface-2:#192621;
+    --ink:#E6EFEB; --ink-2:#B4C4BD; --muted:#8A9C94;
+    --line:#26352F; --line-strong:#38493F;
+    --accent:#7FD1AE; --accent-soft:#1B3A2E; --on-accent:#0D1512;
+    --wheat:#E5BC67; --wheat-soft:#3A2E14;
+    --c-novo:#A9B8B1; --c-novo-soft:#24302C;
+    --c-cont:#8DBDF0; --c-cont-soft:#18304A;
+    --c-sem:#F0C062; --c-sem-soft:#3A2D10;
+    --c-rec:#F2988A; --c-rec-soft:#3E1D18;
+    --c-ok:#72D79C; --c-ok-soft:#163A26;
+    --shadow:0 1px 2px rgba(0,0,0,.35);
+    --shadow-lg:0 18px 60px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0D1512; --surface:#141F1B; --surface-2:#192621;
+  --ink:#E6EFEB; --ink-2:#B4C4BD; --muted:#8A9C94;
+  --line:#26352F; --line-strong:#38493F;
+  --accent:#7FD1AE; --accent-soft:#1B3A2E; --on-accent:#0D1512;
+  --wheat:#E5BC67; --wheat-soft:#3A2E14;
+  --c-novo:#A9B8B1; --c-novo-soft:#24302C;
+  --c-cont:#8DBDF0; --c-cont-soft:#18304A;
+  --c-sem:#F0C062; --c-sem-soft:#3A2D10;
+  --c-rec:#F2988A; --c-rec-soft:#3E1D18;
+  --c-ok:#72D79C; --c-ok-soft:#163A26;
+  --shadow:0 1px 2px rgba(0,0,0,.35);
+  --shadow-lg:0 18px 60px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:20px;padding-block:22px 72px;display:grid;gap:20px}
+h1,h2,h3{font-family:var(--display);font-weight:700;margin:0;text-wrap:balance;letter-spacing:-.01em}
+h1{font-size:clamp(24px,3.4vw,32px);line-height:1.1}
+h2{font-size:19px;line-height:1.2}
+h3{font-size:15px}
+p{margin:0}
+.num{font-variant-numeric:tabular-nums}
+.eyebrow{font-size:11.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+
+/* botões e campos */
+button,input,select,textarea{font:inherit;color:inherit}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);border-radius:9px;padding:8px 13px;font-weight:600;font-size:14px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn.danger{color:var(--c-rec);border-color:var(--c-rec-soft)}
+.btn.small{padding:5px 10px;font-size:13px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.field{display:grid;gap:4px;min-width:0}
+.field>span{font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.input{width:100%;border:1px solid var(--line-strong);background:var(--surface);border-radius:8px;padding:8px 10px;font-size:14px}
+textarea.input{resize:vertical;min-height:70px}
+
+/* cabeçalho */
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:14px}
+.top .lede{max-width:62ch;color:var(--ink-2);margin-top:6px}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.sync{font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.dot.on{background:var(--c-ok)}
+.dot.off{background:var(--c-rec)}
+
+/* funil */
+.funnel{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+.stage{padding:14px 16px;border-right:1px solid var(--line);display:grid;gap:4px;text-align:left;background:none;border-top:0;border-bottom:3px solid transparent;border-left:0;cursor:pointer}
+.stage:last-child{border-right:0}
+.stage:hover{background:var(--surface-2)}
+.stage[aria-pressed="true"]{background:var(--surface-2);border-bottom-color:var(--sc)}
+.stage .lbl{font-size:12.5px;font-weight:600;color:var(--sc);display:flex;align-items:center;gap:6px}
+.stage .lbl::before{content:"";width:8px;height:8px;border-radius:2px;background:var(--sc)}
+.stage .big{font-family:var(--display);font-size:30px;line-height:1}
+.stage .sub{font-size:12px;color:var(--muted)}
+@media (max-width:760px){.funnel{grid-template-columns:repeat(2,minmax(0,1fr))}.stage{border-bottom:1px solid var(--line)}.stage:nth-child(2n){border-right:0}}
+
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;gap:2px}
+.kpi b{font-family:var(--display);font-size:22px;font-weight:700}
+.kpi .k-good{color:var(--c-ok)} .kpi .k-wheat{color:var(--wheat)}
+
+/* grade principal */
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start}
+@media (max-width:980px){.grid2{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:16px;display:grid;gap:12px;min-width:0}
+.panel-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.toolbar .input{width:auto;flex:1 1 220px}
+.toggle{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;font-weight:600;color:var(--ink-2);cursor:pointer}
+
+/* linhas de cliente */
+.rows{display:grid;gap:0;border-top:1px solid var(--line)}
+.row{display:grid;grid-template-columns:minmax(0,2.2fr) minmax(0,1.2fr) minmax(0,1.1fr) minmax(0,1.3fr) auto;gap:12px;align-items:center;padding:12px 4px;border-bottom:1px solid var(--line);cursor:pointer;text-align:left;background:none;border-left:0;border-right:0;border-top:0;width:100%}
+.row:hover{background:var(--surface-2)}
+.row .who{display:flex;gap:10px;align-items:center;min-width:0}
+.av{flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:13px;background:var(--accent-soft);color:var(--accent)}
+.who .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.who .em{font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cell{min-width:0;font-size:13.5px}
+.cell .t2{font-size:12px;color:var(--muted)}
+.pill{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:3px 9px;font-size:12px;font-weight:600;white-space:nowrap;background:var(--ps);color:var(--pc)}
+.tag{display:inline-block;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.tag.alto{background:var(--c-ok-soft);color:var(--c-ok)}
+.tag.baixo{background:var(--c-rec-soft);color:var(--c-rec)}
+.late{color:var(--c-rec);font-weight:600}
+.today{color:var(--wheat);font-weight:600}
+@media (max-width:760px){
+  .row{grid-template-columns:minmax(0,1fr) auto;row-gap:6px}
+  .row .c-plano,.row .c-retorno{display:none}
+}
+.empty{padding:28px 10px;text-align:center;color:var(--muted);display:grid;gap:10px;justify-items:center}
+
+/* lateral */
+.side{display:grid;gap:20px;min-width:0}
+.queue{display:grid;gap:8px}
+.q-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);cursor:pointer;text-align:left;width:100%}
+.q-item:hover{border-color:var(--accent)}
+.bars{display:grid;gap:9px}
+.bar{display:grid;gap:3px}
+.bar .bl{display:flex;justify-content:space-between;gap:8px;font-size:13px}
+.bar .track{height:8px;border-radius:4px;background:var(--surface-2);border:1px solid var(--line);overflow:hidden}
+.bar .fill{height:100%;background:var(--bc,var(--accent));border-radius:4px}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.split .box{border:1px solid var(--line);border-radius:10px;padding:10px;display:grid;gap:2px}
+.split .box b{font-family:var(--display);font-size:22px}
+
+/* diálogos */
+dialog{border:0;padding:0;background:var(--surface);color:var(--ink);border-radius:16px;box-shadow:var(--shadow-lg);width:min(720px,calc(100vw - 32px));max-height:calc(100vh - 40px)}
+dialog::backdrop{background:rgba(10,20,16,.45)}
+.dlg{display:grid;gap:14px;padding:20px;overflow:auto;max-height:calc(100vh - 40px)}
+.dlg-h{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.form-grid .full{grid-column:1/-1}
+@media (max-width:560px){.form-grid{grid-template-columns:minmax(0,1fr)}}
+.sec{border-top:1px solid var(--line);padding-top:14px;display:grid;gap:10px}
+.stepper{display:flex;flex-wrap:wrap;gap:6px}
+.stepper button{border:1px solid var(--line-strong);background:var(--surface);border-radius:999px;padding:5px 11px;font-size:13px;font-weight:600;cursor:pointer;color:var(--ink-2)}
+.stepper button[aria-pressed="true"]{background:var(--ps);color:var(--pc);border-color:var(--pc)}
+.choices{display:flex;flex-wrap:wrap;gap:6px}
+.choices label{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line-strong);border-radius:9px;padding:6px 10px;font-size:13.5px;cursor:pointer}
+.choices input{accent-color:var(--accent)}
+.choices label:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.timeline{display:grid;gap:0;border-left:2px solid var(--line);margin-left:6px}
+.tl{position:relative;padding:0 0 12px 16px;font-size:13.5px}
+.tl::before{content:"";position:absolute;left:-6px;top:5px;width:10px;height:10px;border-radius:50%;background:var(--surface);border:2px solid var(--tc,var(--line-strong))}
+.tl .meta{font-size:12px;color:var(--muted)}
+.msg{background:var(--surface-2);border:1px dashed var(--line-strong);border-radius:10px;padding:10px 12px;font-size:13.5px;white-space:pre-wrap}
+.contact-line{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13.5px}
+.contact-line code{font-family:var(--mono);font-size:12.5px;background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:2px 6px;user-select:all}
+.preview{border:1px solid var(--line);border-radius:10px;max-height:260px;overflow:auto}
+.preview table{width:100%;border-collapse:collapse;font-size:13px}
+.preview th,.preview td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+.preview th{position:sticky;top:0;background:var(--surface-2);font-size:12px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:10px;font-size:14px;font-weight:600;box-shadow:var(--shadow-lg);z-index:20}
+.note{font-size:13px;color:var(--ink-2);background:var(--wheat-soft);border-radius:10px;padding:10px 12px}
+@media (prefers-reduced-motion:no-preference){.row,.q-item,.btn{transition:background .15s,border-color .15s}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <span class="eyebrow">AgroBrazil · Central de Churn &amp; Retenção</span>
+      <h1>Resgate de assinantes</h1>
+      <p class="lede">Lance quem saiu, registre cada tentativa de contato e veja quem voltou, quem não respondeu e por que os outros não renovaram.</p>
+    </div>
+    <div style="display:grid;gap:8px;justify-items:end">
+      <div class="actions">
+        <button class="btn" id="b-colar" type="button">Colar lista do app</button>
+        <button class="btn primary" id="b-novo" type="button">+ Adicionar cliente</button>
+      </div>
+      <span class="sync"><span class="dot" id="sync-dot"></span><span id="sync-txt">Conectando ao banco compartilhado…</span></span>
+    </div>
+  </header>
+
+  <section class="funnel" id="funnel" aria-label="Etapas do funil"></section>
+
+  <section class="kpis" id="kpis"></section>
+
+  <div class="grid2">
+    <section class="panel">
+      <div class="panel-h">
+        <h2 id="list-title">Todos os clientes</h2>
+        <span class="small muted num" id="list-count"></span>
+      </div>
+      <div class="toolbar">
+        <input class="input" id="q" type="search" placeholder="Buscar por nome, e-mail ou telefone">
+        <select class="input" id="ord" style="flex:0 1 210px" aria-label="Ordenar">
+          <option value="retorno">Próximo retorno primeiro</option>
+          <option value="venc">Vencimento mais recente</option>
+          <option value="valor">Maior valor</option>
+          <option value="nome">Nome (A–Z)</option>
+        </select>
+        <select class="input" id="f-eng" style="flex:0 1 150px" aria-label="Engajamento">
+          <option value="">Todo engajamento</option>
+          <option value="alto">Engajamento alto</option>
+          <option value="baixo">Engajamento baixo</option>
+        </select>
+        <label class="toggle"><input type="checkbox" id="f-meus"> Só os meus</label>
+      </div>
+      <div class="rows" id="rows"></div>
+    </section>
+
+    <aside class="side">
+      <section class="panel">
+        <div class="panel-h"><h2>Para hoje</h2><span class="small muted" id="q-count"></span></div>
+        <div class="queue" id="queue"></div>
+      </section>
+      <section class="panel">
+        <h2>Por que não renovaram</h2>
+        <div class="bars" id="motivos"></div>
+      </section>
+      <section class="panel">
+        <h2>O que funciona</h2>
+        <div class="split" id="eng-split"></div>
+        <div class="bars" id="canais"></div>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<!-- Ficha do cliente -->
+<dialog id="d-ficha" aria-labelledby="f-nome">
+  <div class="dlg" id="ficha"></div>
+</dialog>
+
+<!-- Novo / editar cliente -->
+<dialog id="d-form" aria-labelledby="form-title">
+  <form class="dlg" id="form" novalidate>
+    <div class="dlg-h">
+      <div><span class="eyebrow">Dados do app</span><h2 id="form-title">Adicionar cliente</h2></div>
+      <button class="btn ghost" type="button" data-close>Fechar</button>
+    </div>
+    <div class="form-grid">
+      <label class="field"><span>Nome</span><input class="input" id="i-nome" required></label>
+      <label class="field"><span>E-mail</span><input class="input" id="i-email" type="email"></label>
+      <label class="field"><span>WhatsApp / telefone</span><input class="input" id="i-tel" placeholder="(11) 98888-7777"></label>
+      <label class="field"><span>Plano anterior</span><input class="input" id="i-plano" list="planos" placeholder="Plano Premium"></label>
+      <label class="field"><span>Valor do plano (R$)</span><input class="input" id="i-valor" inputmode="decimal" placeholder="54,90"></label>
+      <label class="field"><span>Cancelamento / vencimento</span><input class="input" id="i-venc" type="date"></label>
+      <label class="field"><span>Motivo no app</span><input class="input" id="i-motapp" list="motapps" placeholder="Erro de pagamento"></label>
+      <label class="field"><span>Engajamento pré-churn</span>
+        <select class="input" id="i-eng"><option value="">Não informado</option><option value="alto">Alto</option><option value="baixo">Baixo</option></select></label>
+      <label class="field full"><span>Responsável pelo contato</span><select class="input" id="i-resp"></select></label>
+    </div>
+    <p class="small" id="form-err" style="color:var(--c-rec)" hidden></p>
+    <div class="actions" style="justify-content:flex-end">
+      <button class="btn" type="button" data-close>Cancelar</button>
+      <button class="btn primary" type="submit" id="form-save">Salvar cliente</button>
+    </div>
+  </form>
+</dialog>
+<datalist id="planos"><option value="Plano Premium"><option value="Plano Trimestral"><option value="Plano Semestral"><option value="Plano Anual"></datalist>
+<datalist id="motapps"><option value="Erro de pagamento"><option value="Cancelado pelo usuário"><option value="Vencimento sem renovação"></datalist>
+
+<!-- Colar lista -->
+<dialog id="d-colar" aria-labelledby="colar-title">
+  <div class="dlg">
+    <div class="dlg-h">
+      <div><span class="eyebrow">Importação rápida</span><h2 id="colar-title">Colar lista do app</h2></div>
+      <button class="btn ghost" type="button" data-close>Fechar</button>
+    </div>
+    <p class="small muted">No app, selecione as linhas da Central de Churn (do nome até o engajamento), copie e cole aqui. O painel reconhece nome, e-mail, plano, valor, data, motivo e engajamento. Quem já está no painel, pelo e-mail, não é duplicado.</p>
+    <textarea class="input" id="colar-txt" rows="7" placeholder="Leonardo Macedo&#10;leonardotmacedo@uol.com.br&#10;Plano Premium R$ 54.90  04/10/2026  ERRO DE PAGAMENTO  BAIXO"></textarea>
+    <div id="colar-prev"></div>
+    <div class="actions" style="justify-content:flex-end">
+      <button class="btn" type="button" data-close>Cancelar</button>
+      <button class="btn primary" type="button" id="colar-ok" disabled>Importar</button>
+    </div>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+(() => {
+"use strict";
+
+/* ---------- vocabulário ---------- */
+const ETAPAS = [
+  {id:"a_contatar",  nome:"A contatar",        c:"--c-novo", s:"--c-novo-soft", sub:"ainda sem nenhuma tentativa"},
+  {id:"contatado",   nome:"Em conversa",       c:"--c-cont", s:"--c-cont-soft", sub:"respondeu, sem decisão"},
+  {id:"sem_resposta",nome:"Sem resposta",      c:"--c-sem",  s:"--c-sem-soft",  sub:"tentado e não respondeu"},
+  {id:"recusou",     nome:"Não vai renovar",   c:"--c-rec",  s:"--c-rec-soft",  sub:"respondeu e deu motivo"},
+  {id:"recuperado",  nome:"Voltou a assinar",  c:"--c-ok",   s:"--c-ok-soft",   sub:"assinatura recuperada"},
+];
+const ET = Object.fromEntries(ETAPAS.map(e => [e.id, e]));
+const MOTIVOS = [
+  ["preco","Achou caro / preço"],
+  ["pagamento","Problema no cartão ou pagamento"],
+  ["pouco_uso","Usa pouco o app"],
+  ["safra","Entressafra / pausa na atividade"],
+  ["financeiro","Aperto financeiro no momento"],
+  ["concorrente","Foi para outro serviço"],
+  ["tecnico","Problema técnico no app"],
+  ["conteudo","Conteúdo não atende"],
+  ["saiu_agro","Saiu do agro"],
+  ["outro","Outro motivo"],
+];
+const MOT = Object.fromEntries(MOTIVOS);
+const CANAIS = ["WhatsApp","E-mail","Ligação","Outro"];
+const RESULTADOS = [
+  ["sem_resposta","Não respondeu"],
+  ["conversa","Respondeu, vai pensar"],
+  ["recusou","Respondeu, não vai renovar"],
+  ["recuperado","Voltou a assinar"],
+];
+const RES = Object.fromEntries(RESULTADOS);
+const RES_ETAPA = {sem_resposta:"sem_resposta", conversa:"contatado", recusou:"recusou", recuperado:"recuperado"};
+
+/* ---------- estado ---------- */
+const S = {list:[], db:null, user:null, me:null, profiles:{}, filtroEtapa:"", readOnly:false, loaded:false};
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const brl = v => (Number(v)||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+const pct = (a,b) => b ? Math.round(a*100/b) + "%" : "—";
+const hojeISO = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,10); };
+const fmtData = iso => iso ? iso.slice(8,10)+"/"+iso.slice(5,7)+"/"+iso.slice(0,4) : "—";
+const fmtDataHora = ts => { if(!ts) return ""; const d = new Date(ts); return d.toLocaleDateString("pt-BR") + " às " + d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}); };
+const iniciais = n => (n||"?").trim().split(/\s+/).slice(0,2).map(p=>p[0]).join("").toUpperCase();
+const docId = c => (c.email ? c.email.toLowerCase() : "sem-email-" + Date.now().toString(36) + Math.random().toString(36).slice(2,6)).replace(/[^A-Za-z0-9_\-.~:@+]/g,"_").slice(0,180);
+const parseValor = s => { if(s==null||s==="") return 0; let t = String(s).replace(/[^\d,.]/g,""); if(t.includes(",")) t = t.replace(/\./g,"").replace(",","."); return Number(t)||0; };
+const soDigitos = s => String(s||"").replace(/\D/g,"");
+const primeiroNome = n => (n||"").trim().split(/\s+/)[0] || "";
+
+function toast(msg){ const t=$("toast"); t.textContent=msg; t.hidden=false; clearTimeout(toast._t); toast._t=setTimeout(()=>t.hidden=true,2600); }
+function nomePessoa(id){ if(!id) return ""; const p=S.profiles[id]; return (p && p.name) || (id===S.me ? "você" : "Alguém da equipe"); }
+
+/* ---------- escrita: uma por documento, em fila ---------- */
+const filas = {};
+function gravar(id, fn){
+  const prev = filas[id] || Promise.resolve();
+  const p = prev.then(fn).catch(e => {
+    if(e && e.code==="invalid_argument" && S.readOnly===false){ S.readOnly=true; toast("Você só tem acesso de leitura a este painel."); render(); }
+    else if(e && e.code==="quota_exceeded") toast("O banco do painel está cheio. Exclua registros antigos para continuar.");
+    else toast("Não foi possível salvar. Tente de novo em instantes.");
+    throw e;
+  });
+  filas[id] = p.catch(()=>{});
+  return p;
+}
+const ref = id => S.db.collection("clientes").doc(id);
+function salvarCliente(c){
+  const body = {...c}; delete body._id;
+  body.atualizadoEm = Date.now(); body.atualizadoPor = S.me || null;
+  return gravar(c._id, () => ref(c._id).set(body));
+}
+
+/* ---------- derivados ---------- */
+function proxRetornoStatus(c){
+  if(!c.proximoRetorno || c.etapa==="recuperado" || c.etapa==="recusou") return "";
+  const h = hojeISO();
+  return c.proximoRetorno < h ? "late" : c.proximoRetorno === h ? "today" : "";
+}
+function filaHoje(){
+  const h = hojeISO();
+  return S.list.filter(c => {
+    if(c.etapa==="recuperado"||c.etapa==="recusou") return false;
+    if(c.etapa==="a_contatar") return true;
+    return c.proximoRetorno && c.proximoRetorno <= h;
+  }).sort((a,b) => {
+    const pa = a.etapa==="a_contatar" ? 1 : 0, pb = b.etapa==="a_contatar" ? 1 : 0;
+    if(pa!==pb) return pa-pb;
+    const ea = a.engajamento==="alto"?0:1, eb = b.engajamento==="alto"?0:1;
+    if(ea!==eb) return ea-eb;
+    return (a.proximoRetorno||"").localeCompare(b.proximoRetorno||"");
+  });
+}
+
+/* ---------- render ---------- */
+function render(){
+  renderFunil(); renderKpis(); renderLista(); renderFila(); renderMotivos(); renderAprendizado();
+  $("b-novo").disabled = $("b-colar").disabled = S.readOnly || !S.db;
+}
+
+function renderFunil(){
+  const cont = Object.fromEntries(ETAPAS.map(e=>[e.id,0]));
+  S.list.forEach(c => cont[c.etapa] = (cont[c.etapa]||0)+1);
+  $("funnel").innerHTML = ETAPAS.map(e => `
+    <button type="button" class="stage" data-etapa="${e.id}" aria-pressed="${S.filtroEtapa===e.id}" style="--sc:var(${e.c})">
+      <span class="lbl">${e.nome}</span>
+      <span class="big num">${cont[e.id]}</span>
+      <span class="sub">${e.sub}</span>
+    </button>`).join("");
+}
+
+function renderKpis(){
+  const tot = S.list.length;
+  const tentados = S.list.filter(c => (c.tentativas||[]).length).length;
+  const responderam = S.list.filter(c => (c.tentativas||[]).some(t => t.resultado!=="sem_resposta")).length;
+  const rec = S.list.filter(c => c.etapa==="recuperado");
+  const risco = S.list.filter(c => c.etapa!=="recuperado" && c.etapa!=="recusou");
+  const sumRec = rec.reduce((s,c)=>s+(Number(c.valor)||0),0);
+  const sumRisco = risco.reduce((s,c)=>s+(Number(c.valor)||0),0);
+  $("kpis").innerHTML = `
+    <div class="kpi"><span class="eyebrow">Contatados</span><b class="num">${tentados} <span class="small muted">de ${tot}</span></b><span class="small muted">${pct(tentados,tot)} da lista já recebeu contato</span></div>
+    <div class="kpi"><span class="eyebrow">Taxa de resposta</span><b class="num">${pct(responderam,tentados)}</b><span class="small muted">${responderam} de ${tentados} contatados responderam</span></div>
+    <div class="kpi"><span class="eyebrow">Taxa de resgate</span><b class="num k-good">${pct(rec.length,tentados)}</b><span class="small muted">${rec.length} voltaram a assinar</span></div>
+    <div class="kpi"><span class="eyebrow">Receita</span><b class="num k-good">${brl(sumRec)}</b><span class="small muted">recuperada · <span class="k-wheat" style="font-weight:600">${brl(sumRisco)}</span> ainda em jogo</span></div>`;
+}
+
+function filtrados(){
+  const q = $("q").value.trim().toLowerCase(), qd = soDigitos(q);
+  const eng = $("f-eng").value, meus = $("f-meus").checked;
+  let l = S.list.filter(c =>
+    (!S.filtroEtapa || c.etapa===S.filtroEtapa) &&
+    (!eng || c.engajamento===eng) &&
+    (!meus || c.responsavel===S.me) &&
+    (!q || (c.nome||"").toLowerCase().includes(q) || (c.email||"").toLowerCase().includes(q) || (qd.length>=3 && soDigitos(c.telefone).includes(qd))));
+  const o = $("ord").value;
+  const fim = c => (c.etapa==="recuperado"||c.etapa==="recusou") ? 1 : 0;
+  l.sort((a,b) => {
+    if(o==="nome") return (a.nome||"").localeCompare(b.nome||"","pt-BR");
+    if(o==="valor") return (Number(b.valor)||0)-(Number(a.valor)||0);
+    if(o==="venc") return (b.vencimento||"").localeCompare(a.vencimento||"");
+    if(fim(a)!==fim(b)) return fim(a)-fim(b);
+    const ra=a.proximoRetorno||"9999", rb=b.proximoRetorno||"9999";
+    return ra.localeCompare(rb) || (b.vencimento||"").localeCompare(a.vencimento||"");
+  });
+  return l;
+}
+
+function pill(etapa){ const e = ET[etapa]||ET.a_contatar; return `<span class="pill" style="--pc:var(${e.c});--ps:var(${e.s})">${e.nome}</span>`; }
+
+function renderLista(){
+  const l = filtrados();
+  $("list-title").textContent = S.filtroEtapa ? ET[S.filtroEtapa].nome : "Todos os clientes";
+  $("list-count").textContent = l.length + (l.length===1 ? " cliente" : " clientes");
+  if(!S.loaded){ $("rows").innerHTML = `<div class="empty">Carregando a lista da equipe…</div>`; return; }
+  if(!S.db){ $("rows").innerHTML = `<div class="empty"><b>Banco compartilhado indisponível nesta visualização.</b><span class="small">Abra o painel pelo link do claude.ai, conectado à sua conta, para lançar e ver os contatos da equipe.</span></div>`; return; }
+  if(!S.list.length){ $("rows").innerHTML = `<div class="empty"><b>Nenhum cliente lançado ainda.</b><span class="small">Copie as linhas da Central de Churn do app e use “Colar lista do app”, ou adicione um cliente de cada vez.</span><button class="btn primary" type="button" data-act="colar">Colar lista do app</button></div>`; return; }
+  if(!l.length){ $("rows").innerHTML = `<div class="empty">Nenhum cliente com esses filtros.</div>`; return; }
+  $("rows").innerHTML = l.map(c => {
+    const n = (c.tentativas||[]).length, ult = n ? c.tentativas[n-1] : null;
+    const st = proxRetornoStatus(c);
+    let retorno = "";
+    if(c.etapa==="recusou") retorno = `<span class="t2">${esc(MOT[c.motivo]||"Motivo não informado")}</span>`;
+    else if(c.etapa==="recuperado") retorno = `<span class="t2">${c.oferta && c.oferta.aceita ? "com oferta de resgate" : "sem oferta"}</span>`;
+    else if(c.proximoRetorno) retorno = `<span class="${st}">${st==="late"?"Atrasado · ":st==="today"?"Hoje · ":"Retornar "}${fmtData(c.proximoRetorno)}</span>`;
+    else retorno = `<span class="t2">sem retorno agendado</span>`;
+    return `<button type="button" class="row" data-id="${esc(c._id)}">
+      <span class="who"><span class="av">${esc(iniciais(c.nome))}</span><span style="min-width:0"><span class="nm" style="display:block">${esc(c.nome)}</span><span class="em" style="display:block">${esc(c.email||c.telefone||"sem contato")}</span></span></span>
+      <span class="cell c-plano">${esc(c.plano||"—")}<br><span class="t2 num">${c.valor?brl(c.valor):""} ${c.engajamento?`<span class="tag ${c.engajamento}">${c.engajamento}</span>`:""}</span></span>
+      <span class="cell c-retorno">${retorno}</span>
+      <span class="cell c-ult">${ult ? `${esc(ult.canal)} · ${n} tentativa${n>1?"s":""}<br><span class="t2">${esc(RES[ult.resultado]||"")} em ${fmtData(ult.data)}</span>` : `<span class="t2">Venceu ${fmtData(c.vencimento)}</span>`}</span>
+      <span class="cell">${pill(c.etapa)}</span>
+    </button>`;
+  }).join("");
+}
+
+function renderFila(){
+  const f = filaHoje();
+  $("q-count").textContent = f.length ? f.length + " na fila" : "";
+  if(!S.list.length){ $("queue").innerHTML = `<p class="small muted">Os retornos agendados e quem ainda não foi contatado aparecem aqui, com engajamento alto primeiro.</p>`; return; }
+  if(!f.length){ $("queue").innerHTML = `<p class="small muted">Nenhum retorno pendente para hoje.</p>`; return; }
+  const h = hojeISO();
+  $("queue").innerHTML = f.slice(0,8).map(c => {
+    const motivo = c.etapa==="a_contatar" ? "Primeiro contato" : (c.proximoRetorno < h ? `<span class="late">Atrasado desde ${fmtData(c.proximoRetorno)}</span>` : `<span class="today">Retorno hoje</span>`);
+    return `<button type="button" class="q-item" data-id="${esc(c._id)}"><span style="min-width:0"><b style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.nome)}</b><span class="small muted">${motivo}${c.engajamento?` · <span class="tag ${c.engajamento}">${c.engajamento}</span>`:""}</span></span><span class="small muted num">${c.valor?brl(c.valor):""}</span></button>`;
+  }).join("") + (f.length>8 ? `<p class="small muted">E mais ${f.length-8}. Filtre por “A contatar” ou “Sem resposta” para ver todos.</p>` : "");
+}
+
+function barras(items, cor){
+  const max = Math.max(1, ...items.map(i=>i.v));
+  return items.map(i => `<div class="bar"><div class="bl"><span>${esc(i.k)}</span><b class="num">${i.v}${i.extra?` <span class="small muted" style="font-weight:400">${i.extra}</span>`:""}</b></div><div class="track"><div class="fill" style="width:${(i.v/max*100).toFixed(1)}%;--bc:var(${i.cor||cor})"></div></div></div>`).join("");
+}
+function renderMotivos(){
+  const r = S.list.filter(c => c.etapa==="recusou");
+  if(!r.length){ $("motivos").innerHTML = `<p class="small muted">Quando alguém responder que não vai renovar, o motivo escolhido entra neste ranking.</p>`; return; }
+  const cont = {}; r.forEach(c => { const k = c.motivo||"outro"; cont[k]=(cont[k]||0)+1; });
+  const items = Object.entries(cont).sort((a,b)=>b[1]-a[1]).map(([k,v]) => ({k:MOT[k]||k, v, extra:pct(v,r.length)}));
+  $("motivos").innerHTML = barras(items, "--c-rec");
+}
+function renderAprendizado(){
+  const grupo = g => { const l = S.list.filter(c => c.engajamento===g && (c.tentativas||[]).length); const ok = l.filter(c=>c.etapa==="recuperado").length; return {l:l.length, ok}; };
+  const a = grupo("alto"), b = grupo("baixo");
+  $("eng-split").innerHTML = `
+    <div class="box"><span class="eyebrow">Engaj. alto</span><b class="num" style="color:var(--c-ok)">${pct(a.ok,a.l)}</b><span class="small muted">${a.ok} de ${a.l} resgatados</span></div>
+    <div class="box"><span class="eyebrow">Engaj. baixo</span><b class="num" style="color:var(--c-rec)">${pct(b.ok,b.l)}</b><span class="small muted">${b.ok} de ${b.l} resgatados</span></div>`;
+  const porCanal = {};
+  S.list.forEach(c => (c.tentativas||[]).forEach(t => { const k=t.canal||"Outro"; porCanal[k] = porCanal[k] || {n:0,r:0}; porCanal[k].n++; if(t.resultado!=="sem_resposta") porCanal[k].r++; }));
+  const items = Object.entries(porCanal).sort((x,y)=>y[1].n-x[1].n).map(([k,v]) => ({k:`${k} · responderam`, v:v.r, extra:`de ${v.n} (${pct(v.r,v.n)})`, cor:"--c-cont"}));
+  $("canais").innerHTML = items.length ? `<span class="eyebrow">Resposta por canal</span>` + barras(items) : `<p class="small muted">Cada tentativa registrada alimenta a comparação de canais e de engajamento.</p>`;
+}
+
+/* ---------- ficha ---------- */
+let fichaId = null, delArmado = false;
+function abrirFicha(id){ fichaId = id; delArmado = false; renderFicha(); if(!$("d-ficha").open) $("d-ficha").showModal(); }
+function mensagemSugerida(c){
+  const n = primeiroNome(c.nome);
+  if((c.motivoApp||"").toLowerCase().includes("pagamento"))
+    return `Olá, ${n}! Tudo bem? Aqui é da equipe AgroBrazil. Vimos que a renovação do seu ${c.plano||"plano"} não passou por um erro no pagamento, e por isso o acesso pode ter sido interrompido. Quer que eu te envie um novo link para regularizar? Leva menos de um minuto e você mantém tudo que já usa no app.`;
+  if(c.engajamento==="baixo")
+    return `Olá, ${n}! Aqui é da equipe AgroBrazil. Notamos que sua assinatura não foi renovada e queremos entender: o app deixou de fazer sentido na sua rotina no campo? Sua resposta ajuda muito, e posso te mostrar recursos que talvez você ainda não tenha usado.`;
+  return `Olá, ${n}! Aqui é da equipe AgroBrazil. Sua assinatura do ${c.plano||"plano"} venceu e sentimos sua falta por aqui. Tem alguma coisa que eu possa fazer para você voltar? Tenho uma condição especial para quem está retornando.`;
+}
+function renderFicha(){
+  const c = S.list.find(x => x._id===fichaId);
+  if(!c){ $("d-ficha").close(); return; }
+  const ro = S.readOnly;
+  const tels = soDigitos(c.telefone);
+  const wa = tels ? "https://wa.me/" + (tels.length<=11 ? "55"+tels : tels) + "?text=" + encodeURIComponent(mensagemSugerida(c)) : "";
+  const tl = (c.tentativas||[]).slice().reverse();
+  const e = ET[c.etapa]||ET.a_contatar;
+  const respOpts = opcoesResponsavel(c.responsavel);
+  $("ficha").innerHTML = `
+    <div class="dlg-h">
+      <div style="display:grid;gap:4px;min-width:0">
+        <span class="eyebrow">${esc(c.plano||"Plano não informado")}${c.valor?" · "+brl(c.valor):""}${c.vencimento?" · venceu "+fmtData(c.vencimento):""}</span>
+        <h2 id="f-nome">${esc(c.nome)}</h2>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${pill(c.etapa)}${c.engajamento?`<span class="tag ${c.engajamento}">engaj. ${c.engajamento}</span>`:""}${c.motivoApp?`<span class="small muted">· ${esc(c.motivoApp)}</span>`:""}</div>
+      </div>
+      <button class="btn ghost" type="button" data-close>Fechar</button>
+    </div>
+    <div class="contact-line">
+      ${c.email?`<code>${esc(c.email)}</code><button class="btn small" type="button" data-copy="${esc(c.email)}">Copiar e-mail</button>`:""}
+      ${c.telefone?`<code>${esc(c.telefone)}</code>`:""}
+      ${wa?`<a class="btn small" href="${esc(wa)}" target="_blank" rel="noopener">Abrir WhatsApp</a>`:""}
+      ${!ro?`<button class="btn small ghost" type="button" data-act="editar">Editar dados</button>`:""}
+    </div>
+
+    <div class="sec">
+      <div class="panel-h"><h3>Mensagem sugerida</h3><button class="btn small" type="button" data-act="copiar-msg">Copiar mensagem</button></div>
+      <div class="msg" id="msg-txt">${esc(mensagemSugerida(c))}</div>
+    </div>
+
+    ${ro ? "" : `
+    <form class="sec" id="f-tent">
+      <h3>Registrar contato</h3>
+      <div class="form-grid">
+        <label class="field"><span>Data</span><input class="input" type="date" id="t-data" value="${hojeISO()}"></label>
+        <div class="field"><span>Canal</span><div class="choices">${CANAIS.map((k,i)=>`<label><input type="radio" name="t-canal" value="${k}" ${i===0?"checked":""}>${k}</label>`).join("")}</div></div>
+        <div class="field full"><span>O que aconteceu</span><div class="choices">${RESULTADOS.map(([k,v])=>`<label><input type="radio" name="t-res" value="${k}" ${k==="sem_resposta"?"checked":""}>${v}</label>`).join("")}</div></div>
+        <label class="field full" id="w-motivo" hidden><span>Motivo de não renovar</span>
+          <select class="input" id="t-motivo"><option value="">Escolha o motivo</option>${MOTIVOS.map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select></label>
+        <label class="field" id="w-retorno"><span>Próximo retorno</span><input class="input" type="date" id="t-retorno" value="${addDias(2)}"></label>
+        <label class="field full"><span>Anotação (o que a pessoa disse)</span><textarea class="input" id="t-nota" rows="2" placeholder="Ex.: pediu para chamar depois da colheita"></textarea></label>
+      </div>
+      <div class="sec" style="padding-top:10px">
+        <label class="toggle"><input type="checkbox" id="t-oferta" ${c.oferta&&c.oferta.ofereceu?"checked":""}> Ofereci uma oferta de resgate</label>
+        <div class="form-grid" id="w-oferta" ${c.oferta&&c.oferta.ofereceu?"":"hidden"}>
+          <label class="field"><span>Qual oferta</span><input class="input" id="t-oferta-desc" list="ofertas" value="${esc(c.oferta&&c.oferta.descricao||"")}" placeholder="1º mês com 50% de desconto"></label>
+          <label class="field"><span>Resposta à oferta</span><select class="input" id="t-oferta-res">
+            <option value="" ${!(c.oferta&&c.oferta.aceita!=null)?"selected":""}>Aguardando</option>
+            <option value="sim" ${c.oferta&&c.oferta.aceita===true?"selected":""}>Aceitou</option>
+            <option value="nao" ${c.oferta&&c.oferta.aceita===false?"selected":""}>Recusou</option></select></label>
+        </div>
+      </div>
+      <p class="small" id="t-err" style="color:var(--c-rec)" hidden></p>
+      <div class="actions" style="justify-content:flex-end"><button class="btn primary" type="submit">Salvar contato</button></div>
+    </form>`}
+    <datalist id="ofertas"><option value="1º mês com 50% de desconto"><option value="Trimestral com desconto"><option value="30 dias grátis"><option value="Novo link de pagamento"></datalist>
+
+    <div class="sec">
+      <h3>Histórico</h3>
+      ${tl.length ? `<div class="timeline">${tl.map(t => {
+        const et = ET[RES_ETAPA[t.resultado]]||ET.a_contatar;
+        return `<div class="tl" style="--tc:var(${et.c})"><b>${esc(RES[t.resultado]||t.resultado)}</b> · ${esc(t.canal)}${t.motivo?` · ${esc(MOT[t.motivo]||t.motivo)}`:""}
+          ${t.nota?`<div>${esc(t.nota)}</div>`:""}
+          <div class="meta">${fmtData(t.data)}${t.por?` · por ${esc(nomePessoa(t.por))}`:""}</div></div>`; }).join("")}</div>`
+        : `<p class="small muted">Nenhuma tentativa registrada. Registre o primeiro contato acima.</p>`}
+    </div>
+
+    ${ro ? "" : `
+    <div class="sec">
+      <div class="form-grid">
+        <label class="field"><span>Responsável</span><select class="input" id="f-resp">${respOpts}</select></label>
+        <div class="field"><span>Mover para a etapa (correção manual)</span>
+          <div class="stepper">${ETAPAS.map(x=>`<button type="button" data-etapa-set="${x.id}" aria-pressed="${c.etapa===x.id}" style="--pc:var(${x.c});--ps:var(${x.s})">${x.nome}</button>`).join("")}</div></div>
+      </div>
+      <div class="actions" style="justify-content:space-between;align-items:center">
+        <span class="small muted">${c.atualizadoEm?`Atualizado em ${fmtDataHora(c.atualizadoEm)}${c.atualizadoPor?` por ${esc(nomePessoa(c.atualizadoPor))}`:""}`:""}</span>
+        <button class="btn small danger" type="button" data-act="excluir">${delArmado?"Confirmar exclusão":"Excluir cliente"}</button>
+      </div>
+    </div>`}`;
+  const f = $("f-tent");
+  if(f){
+    const sync = () => {
+      const r = f.querySelector('input[name="t-res"]:checked').value;
+      $("w-motivo").hidden = r!=="recusou";
+      $("w-retorno").hidden = r==="recusou" || r==="recuperado";
+    };
+    f.addEventListener("change", ev => { if(ev.target.name==="t-res") sync(); if(ev.target.id==="t-oferta") $("w-oferta").hidden = !ev.target.checked; });
+    f.addEventListener("submit", ev => { ev.preventDefault(); registrarTentativa(c); });
+    sync();
+  }
+}
+function addDias(n){ const d = new Date(); d.setDate(d.getDate()+n); return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10); }
+
+async function registrarTentativa(c0){
+  const c = structuredClone(S.list.find(x=>x._id===c0._id));
+  const f = $("f-tent");
+  const res = f.querySelector('input[name="t-res"]:checked').value;
+  const canal = f.querySelector('input[name="t-canal"]:checked').value;
+  const motivo = $("t-motivo").value;
+  if(res==="recusou" && !motivo){ $("t-err").textContent="Escolha o motivo de não renovar para salvar."; $("t-err").hidden=false; $("t-motivo").focus(); return; }
+  const t = {data:$("t-data").value||hojeISO(), canal, resultado:res, nota:$("t-nota").value.trim(), por:S.me||null, em:Date.now()};
+  if(res==="recusou") t.motivo = motivo;
+  c.tentativas = [...(c.tentativas||[]), t];
+  c.etapa = RES_ETAPA[res];
+  c.canalUltimo = canal;
+  if(res==="recusou"){ c.motivo = motivo; c.motivoDetalhe = t.nota; }
+  if(res==="recuperado"){ c.recuperadoEm = t.data; }
+  c.proximoRetorno = (res==="recusou"||res==="recuperado") ? "" : ($("t-retorno").value||"");
+  if($("t-oferta").checked){
+    const r = $("t-oferta-res").value;
+    c.oferta = {ofereceu:true, descricao:$("t-oferta-desc").value.trim(), aceita: r==="sim" ? true : r==="nao" ? false : null};
+    if(res==="recuperado" && r==="") c.oferta.aceita = true;
+  } else c.oferta = {ofereceu:false, descricao:"", aceita:null};
+  if(!c.responsavel && S.me) c.responsavel = S.me;
+  try{ await salvarCliente(c); toast(res==="recuperado" ? "Resgatado! Marcado como “Voltou a assinar”." : "Contato registrado."); }catch(e){}
+}
+
+/* ---------- formulário de cliente ---------- */
+let formId = null;
+function opcoesResponsavel(sel){
+  const ids = new Set(S.list.map(c=>c.responsavel).filter(Boolean)); if(S.me) ids.add(S.me);
+  return `<option value="">Sem responsável</option>` + [...ids].map(id => `<option value="${esc(id)}" ${id===sel?"selected":""}>${esc(id===S.me ? (nomePessoa(id)==="você"?"Eu":nomePessoa(id)+" (eu)") : nomePessoa(id))}</option>`).join("");
+}
+function abrirForm(id){
+  formId = id || null;
+  const c = id ? S.list.find(x=>x._id===id) : {};
+  $("form-title").textContent = id ? "Editar cliente" : "Adicionar cliente";
+  $("i-nome").value = c.nome||""; $("i-email").value = c.email||""; $("i-tel").value = c.telefone||"";
+  $("i-plano").value = c.plano||""; $("i-valor").value = c.valor ? String(c.valor).replace(".",",") : "";
+  $("i-venc").value = c.vencimento||""; $("i-motapp").value = c.motivoApp||""; $("i-eng").value = c.engajamento||"";
+  $("i-resp").innerHTML = opcoesResponsavel(id ? c.responsavel : S.me);
+  $("form-err").hidden = true;
+  if($("d-ficha").open) $("d-ficha").close();
+  $("d-form").showModal(); $("i-nome").focus();
+}
+$("form").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  const nome = $("i-nome").value.trim(), email = $("i-email").value.trim().toLowerCase();
+  const err = m => { $("form-err").textContent = m; $("form-err").hidden = false; };
+  if(!nome) return err("Informe o nome do cliente.");
+  if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return err("Esse e-mail não parece válido.");
+  const base = formId ? structuredClone(S.list.find(x=>x._id===formId)) : {etapa:"a_contatar", tentativas:[], criadoPor:S.me||null, criadoEm:Date.now()};
+  const id = formId || docId({email});
+  if(!formId && S.list.some(x=>x._id===id)) return err("Já existe um cliente com esse e-mail no painel.");
+  Object.assign(base, {_id:id, nome, email, telefone:$("i-tel").value.trim(), plano:$("i-plano").value.trim(), valor:parseValor($("i-valor").value), vencimento:$("i-venc").value, motivoApp:$("i-motapp").value.trim(), engajamento:$("i-eng").value, responsavel:$("i-resp").value});
+  $("form-save").disabled = true;
+  try{ await salvarCliente(base); $("d-form").close(); toast(formId ? "Dados atualizados." : "Cliente adicionado."); if(formId) abrirFicha(id); }catch(e){}
+  $("form-save").disabled = false;
+});
+
+/* ---------- colar lista do app ---------- */
+const RX_EMAIL = /[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/;
+const RX_DATA = /\b(\d{2})\/(\d{2})\/(\d{4})\b/;
+const RX_VALOR = /R\$\s*([\d.,]+)/i;
+const RX_PLANO = /(Plano[^\t\n]*?)(?=\s*R\$|\t|\n|$)/i;
+function analisarColagem(txt){
+  const linhas = txt.split(/\r?\n/).map(l=>l.replace(/\s+$/,"")).filter(l=>l.trim() && !/^(Detalhes|WhatsApp|E-mail|Oferta de resgate)$/i.test(l.trim()));
+  const out = []; let cur = null;
+  const ehRuido = l => RX_EMAIL.test(l)||RX_DATA.test(l)||RX_VALOR.test(l)||/^\s*plano/i.test(l)||/^(alto|baixo|erro de|pagamento)/i.test(l.trim());
+  linhas.forEach((l,i) => {
+    const m = l.match(RX_EMAIL);
+    if(m){
+      const antes = l.slice(0, m.index).replace(/\t/g," ").trim();
+      let nome = antes;
+      if(!nome && i>0 && !ehRuido(linhas[i-1])){ nome = linhas[i-1].trim(); if(cur && cur._nomeLinha===i-1) cur.extra = cur.extra.replace(nome,""); }
+      cur = {nome, email:m[0].toLowerCase(), extra:l.slice(m.index+m[0].length)}; out.push(cur); return;
+    }
+    if(cur){ cur.extra += "\n" + l; cur._nomeLinha = i; }
+  });
+  return out.map(r => {
+    const x = r.extra, flat = x.replace(/\s+/g," ");
+    const d = x.match(RX_DATA), v = x.match(RX_VALOR), p = x.match(RX_PLANO);
+    const eng = /\bALTO\b/i.test(flat) ? "alto" : /\bBAIXO\b/i.test(flat) ? "baixo" : "";
+    const mot = /erro de pagamento/i.test(flat) ? "Erro de pagamento" : /cancel/i.test(flat) ? "Cancelado pelo usuário" : "";
+    return {nome:r.nome || r.email.split("@")[0], email:r.email, plano:p ? p[1].replace(/\s+/g," ").trim() : "", valor:v ? parseValor(v[1].replace(/\.(\d{2})$/,",$1")) : 0, vencimento:d ? `${d[3]}-${d[2]}-${d[1]}` : "", motivoApp:mot, engajamento:eng};
+  });
+}
+let colagem = [];
+$("colar-txt").addEventListener("input", () => {
+  colagem = analisarColagem($("colar-txt").value);
+  const ex = new Set(S.list.map(c=>c._id));
+  colagem.forEach(r => r.dup = ex.has(docId(r)));
+  const novos = colagem.filter(r=>!r.dup).length;
+  $("colar-ok").disabled = !novos || S.readOnly;
+  $("colar-ok").textContent = novos ? `Importar ${novos} cliente${novos>1?"s":""}` : "Importar";
+  $("colar-prev").innerHTML = !$("colar-txt").value.trim() ? "" : !colagem.length
+    ? `<p class="note">Nenhum e-mail encontrado no texto colado. Cada cliente precisa do e-mail para ser reconhecido.</p>`
+    : `<div class="preview"><table><thead><tr><th>Nome</th><th>E-mail</th><th>Plano</th><th>Valor</th><th>Vencimento</th><th>Engaj.</th><th></th></tr></thead><tbody>${colagem.map(r=>`<tr><td>${esc(r.nome)}</td><td>${esc(r.email)}</td><td>${esc(r.plano||"—")}</td><td class="num">${r.valor?brl(r.valor):"—"}</td><td class="num">${fmtData(r.vencimento)}</td><td>${r.engajamento?`<span class="tag ${r.engajamento}">${r.engajamento}</span>`:"—"}</td><td class="small muted">${r.dup?"já está no painel":"novo"}</td></tr>`).join("")}</tbody></table></div>`;
+});
+$("colar-ok").addEventListener("click", async () => {
+  const novos = colagem.filter(r=>!r.dup); if(!novos.length) return;
+  $("colar-ok").disabled = true;
+  let ok = 0;
+  for(const r of novos){
+    const c = {_id:docId(r), nome:r.nome, email:r.email, telefone:"", plano:r.plano, valor:r.valor, vencimento:r.vencimento, motivoApp:r.motivoApp, engajamento:r.engajamento, etapa:"a_contatar", tentativas:[], responsavel:S.me||"", criadoPor:S.me||null, criadoEm:Date.now()};
+    try{ await salvarCliente(c); ok++; }catch(e){ break; }
+  }
+  $("d-colar").close(); $("colar-txt").value=""; $("colar-prev").innerHTML=""; colagem=[];
+  toast(`${ok} cliente${ok===1?"":"s"} importado${ok===1?"":"s"}.`);
+});
+
+/* ---------- eventos ---------- */
+$("funnel").addEventListener("click", ev => { const b = ev.target.closest("[data-etapa]"); if(!b) return; S.filtroEtapa = S.filtroEtapa===b.dataset.etapa ? "" : b.dataset.etapa; renderFunil(); renderLista(); });
+["q","ord","f-eng","f-meus"].forEach(id => $(id).addEventListener(id==="q"?"input":"change", renderLista));
+document.addEventListener("click", async ev => {
+  const close = ev.target.closest("[data-close]"); if(close){ close.closest("dialog").close(); return; }
+  const row = ev.target.closest(".row[data-id], .q-item[data-id]"); if(row){ abrirFicha(row.dataset.id); return; }
+  const cp = ev.target.closest("[data-copy]"); if(cp){ copiar(cp.dataset.copy, "E-mail copiado."); return; }
+  const set = ev.target.closest("[data-etapa-set]");
+  if(set){ const c = structuredClone(S.list.find(x=>x._id===fichaId)); if(!c || c.etapa===set.dataset.etapaSet) return; c.etapa = set.dataset.etapaSet; try{ await salvarCliente(c); toast("Etapa alterada para “"+ET[c.etapa].nome+"”."); }catch(e){} return; }
+  const act = ev.target.closest("[data-act]"); if(!act) return;
+  const a = act.dataset.act;
+  if(a==="colar") abrirColar();
+  if(a==="editar") abrirForm(fichaId);
+  if(a==="copiar-msg") copiar($("msg-txt").textContent, "Mensagem copiada.");
+  if(a==="excluir"){
+    if(!delArmado){ delArmado = true; renderFicha(); return; }
+    const id = fichaId; $("d-ficha").close();
+    try{ await gravar(id, () => ref(id).delete()); toast("Cliente excluído."); }catch(e){}
+  }
+});
+$("d-ficha").addEventListener("change", async ev => {
+  if(ev.target.id!=="f-resp") return;
+  const c = structuredClone(S.list.find(x=>x._id===fichaId)); if(!c) return;
+  c.responsavel = ev.target.value; try{ await salvarCliente(c); toast("Responsável atualizado."); }catch(e){}
+});
+$("d-ficha").addEventListener("close", () => { fichaId = null; });
+function abrirColar(){ $("d-colar").showModal(); $("colar-txt").focus(); }
+$("b-colar").addEventListener("click", abrirColar);
+$("b-novo").addEventListener("click", () => abrirForm(null));
+async function copiar(txt, msg){
+  try{ await navigator.clipboard.writeText(txt); toast(msg); }
+  catch(e){ const el = $("msg-txt"); if(el){ const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); } toast("Texto selecionado. Use Ctrl+C para copiar."); }
+}
+
+/* ---------- conexão ---------- */
+function setSync(st, txt){ $("sync-dot").className = "dot " + st; $("sync-txt").textContent = txt; }
+render();
+(async () => {
+  const claude = window.claude;
+  if(!claude || !claude.use){ S.loaded = true; setSync("off","Sem conexão com o banco compartilhado"); render(); return; }
+  const [db, user] = await Promise.all([claude.use("db"), claude.use("user")]);
+  S.user = user;
+  if(user){ try{ S.me = await user.id(); }catch(e){} try{ const w = await user.can("data.write"); if(w===false) S.readOnly = true; }catch(e){} }
+  if(!db){ S.loaded = true; setSync("off","Banco compartilhado indisponível"); render(); return; }
+  S.db = db;
+  db.collection("clientes").limit(1000).onSnapshot(async snap => {
+    S.list = snap.docs.map(d => ({...d.data(), _id:d.id})).map(c => ({...c, etapa: ET[c.etapa] ? c.etapa : "a_contatar"}));
+    S.loaded = true;
+    setSync("on", S.readOnly ? "Somente leitura · sincronizado com a equipe" : "Sincronizado com a equipe");
+    if(user){
+      const ids = new Set(); if(S.me) ids.add(S.me);
+      S.list.forEach(c => { [c.responsavel, c.atualizadoPor, ...(c.tentativas||[]).map(t=>t.por)].forEach(i => i && ids.add(i)); });
+      try{ S.profiles = await user.profiles([...ids]); }catch(e){}
+    }
+    render();
+    const ativo = document.activeElement;
+    if(fichaId && $("d-ficha").open && !(ativo && ativo.closest && ativo.closest("#f-tent"))) renderFicha();
+  }, err => { setSync("off", err && err.code==="revoked" ? "Acesso ao banco encerrado" : "Conexão interrompida. Recarregue a página."); });
+})();
+})();
+</script>
