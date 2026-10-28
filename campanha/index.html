@@ -1,0 +1,468 @@
+<title>Checklist dos Drops</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,500;6..96,600&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: bancada de joalheiro — resumo e fila de produção no topo, fases em ordem, ficha da peça em painel lateral. */
+:root{
+  --bg:#F6F5F8; --surface:#FFFFFF; --surface-2:#FAF9FB;
+  --ink:#1E1A24; --ink-2:#4A4453; --muted:#6B6475;
+  --line:#E3DFE8; --line-strong:#CBC5D3;
+  --accent:#8C1D47; --accent-soft:#F4E4EB; --on-accent:#FFFFFF;
+  --s-fazer:#8A8494; --s-fazer-bg:#EFEDF2;
+  --s-criando:#9A5B00; --s-criando-bg:#FBEFD9;
+  --s-revisao:#245EA8; --s-revisao-bg:#E2ECF9;
+  --s-pronta:#1F7547; --s-pronta-bg:#DDF1E5;
+  --warn:#9A3B12; --warn-bg:#FBE7DD;
+  --shadow:0 18px 50px rgba(30,26,36,.18);
+  --f-display:"Bodoni Moda", "Didot", "Bodoni 72", Georgia, serif;
+  --f-body:"Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141218; --surface:#1C1A21; --surface-2:#211F27;
+  --ink:#EEEAF2; --ink-2:#C9C3D1; --muted:#A49DAE;
+  --line:#2E2A35; --line-strong:#423C4B;
+  --accent:#E0628F; --accent-soft:#3A1E2A; --on-accent:#1A0D13;
+  --s-fazer:#A49DAE; --s-fazer-bg:#2A2730;
+  --s-criando:#F0B65A; --s-criando-bg:#3A2C14;
+  --s-revisao:#7FB0F0; --s-revisao-bg:#1B2A40;
+  --s-pronta:#6FD39C; --s-pronta-bg:#173326;
+  --warn:#F49A6E; --warn-bg:#3A2117;
+  --shadow:0 18px 50px rgba(0,0,0,.5);
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#141218; --surface:#1C1A21; --surface-2:#211F27;
+  --ink:#EEEAF2; --ink-2:#C9C3D1; --muted:#A49DAE;
+  --line:#2E2A35; --line-strong:#423C4B;
+  --accent:#E0628F; --accent-soft:#3A1E2A; --on-accent:#1A0D13;
+  --s-fazer:#A49DAE; --s-fazer-bg:#2A2730;
+  --s-criando:#F0B65A; --s-criando-bg:#3A2C14;
+  --s-revisao:#7FB0F0; --s-revisao-bg:#1B2A40;
+  --s-pronta:#6FD39C; --s-pronta-bg:#173326;
+  --warn:#F49A6E; --warn-bg:#3A2117;
+  --shadow:0 18px 50px rgba(0,0,0,.5);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1080px;margin:0 auto;padding-block:28px 64px;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));display:flex;flex-direction:column;gap:28px}
+h1,h2,h3{font-family:var(--f-display);font-weight:600;text-wrap:balance;margin:0;letter-spacing:-.01em}
+h1{font-size:clamp(30px,5vw,44px);line-height:1.05}
+h2{font-size:22px}
+.eyebrow{font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.mono{font-family:var(--f-mono);font-size:12px;letter-spacing:.02em}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* Topo */
+.top{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:24px;align-items:end}
+.top p{margin:8px 0 0;color:var(--ink-2);max-width:56ch}
+.sync{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);margin-top:12px}
+.sync i{width:7px;height:7px;border-radius:50%;background:var(--s-fazer)}
+.sync[data-on="1"] i{background:var(--s-pronta)}
+.sync[data-on="warn"] i{background:var(--warn)}
+.next{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:6px;text-align:left}
+.next:hover{border-color:var(--line-strong)}
+.next strong{font-family:var(--f-display);font-size:20px;font-weight:600}
+.next span.sub{color:var(--muted);font-size:13px}
+
+/* Barra de progresso por status */
+.meter{display:flex;flex-direction:column;gap:10px}
+.meter-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.meter-head b{font-family:var(--f-display);font-size:28px;font-weight:600;font-variant-numeric:tabular-nums}
+.bar{display:flex;height:10px;border-radius:99px;overflow:hidden;background:var(--s-fazer-bg)}
+.bar span{display:block;height:100%;transition:width .4s ease}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--ink-2)}
+.legend span{display:inline-flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums}
+.legend i{width:9px;height:9px;border-radius:2px}
+
+/* Filtros */
+.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:6px 12px;font-size:13px;color:var(--ink-2)}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.search{flex:1 1 200px;min-width:0;border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:7px 14px;font:inherit;font-size:14px;color:var(--ink)}
+
+/* Fases */
+.phase{display:flex;flex-direction:column;gap:10px}
+.phase-head{display:flex;align-items:center;gap:14px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+.phase-num{font-family:var(--f-display);font-size:30px;line-height:1;color:var(--accent);min-width:26px}
+.phase-head .t{flex:1;min-width:0}
+.phase-head .c{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.mini{width:80px;height:4px;border-radius:9px;background:var(--line);overflow:hidden}
+.mini span{display:block;height:100%;background:var(--s-pronta)}
+
+.rows{display:flex;flex-direction:column;gap:6px}
+.row{display:grid;grid-template-columns:62px minmax(0,1fr) auto;gap:14px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;text-align:left;width:100%}
+.row:hover{border-color:var(--line-strong)}
+.row[data-status="pronta"] .name{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--line-strong)}
+.row .code{color:var(--muted)}
+.row .name{font-weight:600;display:block}
+.row .meta{display:flex;gap:10px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-top:2px}
+.row .meta .note{max-width:46ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .meta .flag{color:var(--warn)}
+.pill{font-size:12px;font-weight:600;padding:3px 10px;border-radius:99px;white-space:nowrap}
+.pill[data-s="fazer"]{color:var(--s-fazer);background:var(--s-fazer-bg)}
+.pill[data-s="criando"]{color:var(--s-criando);background:var(--s-criando-bg)}
+.pill[data-s="revisao"]{color:var(--s-revisao);background:var(--s-revisao-bg)}
+.pill[data-s="pronta"]{color:var(--s-pronta);background:var(--s-pronta-bg)}
+.empty{color:var(--muted);font-size:14px;padding:8px 2px}
+
+/* Painel da peça */
+.scrim{position:fixed;inset:0;background:rgba(10,8,14,.35);z-index:20}
+.panel{position:fixed;top:0;right:0;bottom:0;width:min(520px,100%);background:var(--surface);z-index:21;box-shadow:var(--shadow);display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);padding-right:env(safe-area-inset-right,0px)}
+.panel-head{display:flex;gap:12px;align-items:flex-start;padding:20px 22px 14px;border-bottom:1px solid var(--line)}
+.panel-head .t{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.panel-head h2{font-size:26px}
+.x{border:1px solid var(--line);background:var(--surface-2);border-radius:8px;width:34px;height:34px;font-size:18px;line-height:1;flex:none}
+.panel-body{overflow-y:auto;padding:18px 22px 28px;display:flex;flex-direction:column;gap:22px}
+.sec{display:flex;flex-direction:column;gap:8px}
+.brief{margin:0;color:var(--ink-2);background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:12px 14px;white-space:pre-line}
+.dep{color:var(--warn);background:var(--warn-bg);border-radius:8px;padding:8px 12px;font-size:13.5px;font-weight:500}
+.seg{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:4px}
+.seg button{border:0;background:transparent;border-radius:7px;padding:8px 4px;font-size:13px;font-weight:600;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.checks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.checks label{display:flex;gap:10px;align-items:flex-start;padding:7px 8px;border-radius:8px;cursor:pointer}
+.checks label:hover{background:var(--surface-2)}
+.checks input{width:17px;height:17px;margin:2px 0 0;accent-color:var(--accent);flex:none}
+.checks input:checked + span{color:var(--muted);text-decoration:line-through}
+.sub-count{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+textarea,input[type="text"],input[type="url"],input[type="date"]{width:100%;font:inherit;font-size:14.5px;color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+textarea{min-height:170px;resize:vertical;line-height:1.55}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.saved{font-size:12.5px;color:var(--muted);min-height:18px}
+.lbl{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.open-link{font-size:13px;color:var(--accent);font-weight:600}
+
+@media (max-width:760px){
+  .top{grid-template-columns:1fr}
+  .row{grid-template-columns:minmax(0,1fr) auto}
+  .row .code{display:none}
+  .mini{display:none}
+  .two{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){.bar span{transition:none}}
+</style>
+
+<main class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow">Campanha · Drops 1, 2 e 3</div>
+      <h1>Checklist dos Drops</h1>
+      <p>Todas as peças da campanha na ordem de produção. Toque em uma peça para marcar etapas, mudar o status e escrever as anotações dela.</p>
+      <div class="sync" id="sync" data-on="0"><i></i><span>Conectando ao salvamento…</span></div>
+    </div>
+    <button class="next" id="next" type="button"></button>
+  </header>
+
+  <section class="meter" aria-label="Progresso geral">
+    <div class="meter-head">
+      <div><b id="pct">0%</b> <span class="sub-count" id="pct-sub"></span></div>
+    </div>
+    <div class="bar" id="bar"></div>
+    <div class="legend" id="legend"></div>
+  </section>
+
+  <div class="filters" role="toolbar" aria-label="Filtros">
+    <div class="filters" id="status-filter"></div>
+    <input class="search" id="q" type="search" placeholder="Buscar peça ou anotação…" aria-label="Buscar">
+  </div>
+
+  <div id="list" style="display:flex;flex-direction:column;gap:30px"></div>
+</main>
+
+<div class="scrim" id="scrim" hidden></div>
+<aside class="panel" id="panel" hidden role="dialog" aria-modal="true" aria-labelledby="p-name">
+  <div class="panel-head">
+    <div class="t">
+      <span class="mono" id="p-code"></span>
+      <h2 id="p-name"></h2>
+      <span class="sub-count" id="p-phase"></span>
+    </div>
+    <button class="x" id="close" type="button" aria-label="Fechar">×</button>
+  </div>
+  <div class="panel-body">
+    <div class="sec">
+      <span class="eyebrow">Status</span>
+      <div class="seg" id="p-status"></div>
+    </div>
+    <div class="sec">
+      <span class="eyebrow">Briefing</span>
+      <p class="brief" id="p-brief"></p>
+      <div class="dep" id="p-dep" hidden></div>
+    </div>
+    <div class="sec">
+      <div class="lbl"><span class="eyebrow">Etapas</span><span class="sub-count" id="p-subcount"></span></div>
+      <ul class="checks" id="p-checks"></ul>
+    </div>
+    <div class="sec">
+      <div class="lbl"><label class="eyebrow" for="p-notes">Anotações</label><span class="saved" id="p-saved"></span></div>
+      <textarea id="p-notes" placeholder="Ideias, frases, ajustes pedidos, contato do fornecedor, decisões tomadas…"></textarea>
+    </div>
+    <div class="two">
+      <div class="sec">
+        <label class="eyebrow" for="p-due">Prazo</label>
+        <input id="p-due" type="date">
+      </div>
+      <div class="sec">
+        <div class="lbl"><label class="eyebrow" for="p-link">Link do arquivo</label><a class="open-link" id="p-open" target="_blank" rel="noopener" hidden>Abrir</a></div>
+        <input id="p-link" type="url" placeholder="Canva, Drive, Figma…">
+      </div>
+    </div>
+  </div>
+</aside>
+
+<script>
+const FINAL = ["Revisão de pontuação, acentos e gramática", "Arquivo final exportado"];
+const PHASES = [
+  {id:"caderno", nome:"Caderno — Defesa KV"},
+  {id:"impressos", nome:"Adesivos e panfletos"},
+  {id:"carrosseis", nome:"Carrosséis"},
+  {id:"stories", nome:"Stories"},
+  {id:"mockups", nome:"Mockups"},
+  {id:"apresentacao", nome:"Apresentação"},
+];
+const PIECES = [
+  {id:"cd-01", fase:"caderno", nome:"Criação", brief:"Abertura do caderno: registro do processo de criação da campanha.", subs:["Texto da seção","Imagens do processo","Diagramação"]},
+  {id:"cd-02", fase:"caderno", nome:"Painel semântico", brief:"Painel de referências visuais que sustenta o conceito da campanha.", subs:["Curadoria de imagens","Montagem do painel","Legenda de cada eixo do painel"]},
+  {id:"cd-03", fase:"caderno", nome:"Conceito", brief:"Texto do conceito que guia todas as peças.", subs:["Rascunho do conceito","Versão final do texto"]},
+  {id:"cd-04", fase:"caderno", nome:"Elementos essenciais", brief:"Seção com os elementos que garantem a unidade visual das peças.", subs:["8.3.1 Frase-chave","Cores","Tipografia","Key Visual (KV)"]},
+  {id:"cd-05", fase:"caderno", nome:"Defesa de criação", brief:"Justificativa das escolhas criativas, ligando conceito, KV e peças.", subs:["Argumentos da defesa","Relação com o painel semântico","Texto final"]},
+
+  {id:"pf-01", fase:"impressos", nome:"Panfleto de boas-vindas", brief:"Mensagem “Que bom ter você com a gente” acompanhada de uma frase motivacional.", subs:["Escolher a frase motivacional","Arte","Arquivo para gráfica (sangria e CMYK)"]},
+  {id:"pf-02", fase:"impressos", nome:"Panfleto de desconto", brief:"Panfleto para deixar em locais parceiros.", subs:["Definir valor e regras do desconto","Definir locais de distribuição","Arte","Arquivo para gráfica (sangria e CMYK)"]},
+  {id:"ad-01", fase:"impressos", nome:"Adesivo de espelho — Academia", brief:"Frase: “Em constante construção. E tudo bem!”", subs:["Medida do espelho","Arte","Arquivo para impressão ou recorte"]},
+  {id:"ad-02", fase:"impressos", nome:"Adesivo de espelho — Loja", brief:"Frase: “Experimente ser quem você quiser”", subs:["Medida do espelho","Arte","Arquivo para impressão ou recorte"]},
+  {id:"ad-03", fase:"impressos", nome:"Adesivo de espelho — Cafeteria", brief:"Frase: “Tenho tanta coisa bonita pela frente.”", subs:["Medida do espelho","Arte","Arquivo para impressão ou recorte"]},
+
+  {id:"cr-01", fase:"carrosseis", nome:"Drop 1 — Peças clássicas", brief:"Carrossel narrativo com a rotina de Beatriz. As joias aparecem de forma sutil e natural; frases curtas, ligadas entre si, constroem a história.", subs:["Slide 1: skincare e brinco diante do espelho","Slide 2: dirigindo até a faculdade, anel em destaque","Slide 3: conversa com as amigas, colar em uso","Slide 4: pausa para o café, outro detalhe em destaque","Slide 5: encerramento — as clássicas acompanham a rotina","Sequência de frases curtas e conectadas","Produção das fotos","Legenda do post"]},
+  {id:"cr-02", fase:"carrosseis", nome:"Drop 2 — Peças coloridas", brief:"Cada slide dividido na horizontal: em cima, a peça em preto e branco (formato e design); embaixo, a peça em uso, totalmente colorida.", subs:["Selecionar as peças do drop","Fotos de produto (tratadas em P&B)","Fotos em uso (coloridas)","Montagem dividida ao meio em cada slide","Legenda do post"]},
+  {id:"cr-03", fase:"carrosseis", nome:"Drop 3 — Peças orgânicas", brief:"Carrossel interativo com quatro propostas criadas pelas mulheres, identificadas por A, B, C e D. Slide final convida a comentar qual foi a escolhida; a revelação sai nos Stories dois dias depois.", subs:["Slide A","Slide B","Slide C","Slide D","Slide final de interação","Legenda pedindo o palpite nos comentários","Anotar a data de publicação (revelação em +2 dias)"]},
+
+  {id:"st-01", fase:"stories", nome:"Informativo de circuito", brief:"Story que informa o circuito da campanha.", subs:["Confirmar as informações do circuito","Arte","Agendar publicação"]},
+  {id:"st-02", fase:"stories", nome:"Look com peça", brief:"Story mostrando um look composto com uma peça do drop.", dep:"Depende da gravação.", subs:["Gravação","Edição","Textos e figurinhas","Publicação"]},
+  {id:"st-03", fase:"stories", nome:"Story ligado ao carrossel 3", brief:"Revelação da peça escolhida no carrossel do Drop 3.", dep:"Depende da gravação da Bruna. Publicar dois dias após o carrossel do Drop 3.", subs:["Gravação da Bruna","Edição","Revelação da peça escolhida","Publicação no dia certo"]},
+
+  {id:"mk-01", fase:"mockups", nome:"Garrafa de água personalizada", brief:"Mockup da garrafa com a identidade da campanha.", subs:["Arte para aplicação","Mockup montado"]},
+  {id:"mk-02", fase:"mockups", nome:"Camisa personalizada", brief:"Mockup da camisa com a identidade da campanha.", subs:["Arte para aplicação","Mockup montado"]},
+  {id:"mk-03", fase:"mockups", nome:"Lip balm", brief:"Mockup da embalagem do lip balm.", subs:["Arte da embalagem","Mockup montado"]},
+  {id:"mk-04", fase:"mockups", nome:"Incenso", brief:"Mockup da embalagem do incenso.", subs:["Arte da embalagem","Mockup montado"]},
+  {id:"mk-05", fase:"mockups", nome:"Molde de referência", brief:"Molde usado como referência para o desenho das peças.", subs:["Desenho do molde","Mockup montado"]},
+  {id:"mk-06", fase:"mockups", nome:"Catálogo de peças online", brief:"Catálogo digital com as peças da coleção.", subs:["Estrutura das páginas","Fotos e descrições das peças","Mockup em tela"]},
+  {id:"mk-07", fase:"mockups", nome:"Catálogo de pedras, cores e acabamentos", brief:"Catálogo visual para as participantes, com referências definidas antes com o fornecedor (materiais disponíveis e limites técnicos de produção). Reúne imagens com códigos de referência, dimensões e especificações.", subs:["Fechar referências com o fornecedor","Modelos e formatos de pedras","Cores","Opções de metal","Acabamentos","Códigos, dimensões e especificações"]},
+  {id:"mk-08", fase:"mockups", nome:"Ficha individual de criação", brief:"Ficha para cada participante registrar sua criação. Ao final, fichas e desenhos são reunidos para avaliar a viabilidade técnica e comercial.", subs:["Campo: nome da joia","Campo: tipo de peça","Espaço para o desenho final","Campo: pedras e cores","Campo: materiais e acabamentos","Campo: inspiração","Layout para impressão"]},
+
+  {id:"ap-01", fase:"apresentacao", nome:"Apresentação final", brief:"Apresentação que reúne o caderno e todas as peças produzidas.", subs:["Roteiro","Slides","Inserir as peças finalizadas","Ensaio"]},
+];
+const CODES = {caderno:"CD",impressos:"IM",carrosseis:"CR",stories:"ST",mockups:"MK",apresentacao:"AP"};
+PIECES.forEach(p => { p.subs = p.subs.concat(FINAL); p.code = p.id.toUpperCase(); });
+const STATUS = [
+  {id:"fazer", nome:"A fazer"},
+  {id:"criando", nome:"Em criação"},
+  {id:"revisao", nome:"Em revisão"},
+  {id:"pronta", nome:"Pronta"},
+];
+const statusName = id => (STATUS.find(s => s.id === id) || STATUS[0]).nome;
+
+/* Estado: um documento por peça em pecas/<id>. */
+const state = {};
+const blank = () => ({status:"fazer", notas:"", link:"", prazo:"", checks:{}});
+const get = id => state[id] || blank();
+let db = null, filterStatus = "todas", query = "", openId = null;
+
+const $ = s => document.querySelector(s);
+const el = (tag, attrs = {}, ...kids) => {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") n.className = v; else if (k === "text") n.textContent = v; else n.setAttribute(k, v);
+  }
+  kids.forEach(k => k && n.append(k));
+  return n;
+};
+const fmtDate = d => { if (!d) return ""; const [y,m,dd] = d.split("-"); return `${dd}/${m}`; };
+const checkCount = p => p.subs.filter((_, i) => get(p.id).checks[i]).length;
+
+/* ---------- salvamento ---------- */
+const LS_KEY = "checklist-drops-v1";
+function lsLoad(){ try { return JSON.parse(localStorage.getItem(LS_KEY) || "{}"); } catch { return {}; } }
+function lsSave(){ try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch {} }
+
+const writing = {}, pending = {};
+async function persist(id){
+  if (!db) { lsSave(); return; }
+  if (writing[id]) { pending[id] = true; return; }
+  writing[id] = true;
+  try {
+    await db.doc("pecas/" + id).set({...get(id), atualizadoEm: new Date().toISOString()});
+    if (id === openId) setSaved("Salvo");
+  } catch (e) {
+    if (id === openId) setSaved(e && e.code === "invalid_argument" ? "Você só tem acesso de leitura" : "Não foi possível salvar. Tente de novo.");
+  } finally {
+    writing[id] = false;
+    if (pending[id]) { pending[id] = false; persist(id); }
+  }
+}
+function change(id, patch){
+  state[id] = {...get(id), ...patch};
+  render();
+  if (id === openId) fillPanel(false);
+  persist(id);
+}
+function setSaved(t){ $("#p-saved").textContent = t; }
+function setSync(on, text){ const s = $("#sync"); s.dataset.on = on; s.lastElementChild.textContent = text; }
+
+/* ---------- render da lista ---------- */
+function matches(p){
+  const s = get(p.id);
+  if (filterStatus !== "todas" && s.status !== filterStatus) return false;
+  if (!query) return true;
+  const hay = (p.nome + " " + p.code + " " + p.brief + " " + s.notas).toLowerCase();
+  return hay.includes(query);
+}
+function render(){
+  const total = PIECES.length;
+  const counts = Object.fromEntries(STATUS.map(s => [s.id, 0]));
+  PIECES.forEach(p => counts[get(p.id).status]++);
+  const done = counts.pronta;
+  $("#pct").textContent = Math.round(done / total * 100) + "%";
+  $("#pct-sub").textContent = `${done} de ${total} peças prontas`;
+  $("#bar").replaceChildren(...["pronta","revisao","criando"].map(s => {
+    const b = el("span"); b.style.width = (counts[s] / total * 100) + "%"; b.style.background = `var(--s-${s})`; return b;
+  }));
+  $("#legend").replaceChildren(...STATUS.slice().reverse().map(s => {
+    const i = el("i"); i.style.background = `var(--s-${s.id})`;
+    return el("span", {}, i, `${s.nome}: ${counts[s.id]}`);
+  }));
+
+  $("#status-filter").replaceChildren(...[{id:"todas", nome:"Todas"}, ...STATUS].map(s => {
+    const b = el("button", {class:"chip", type:"button", "aria-pressed": String(filterStatus === s.id), text: s.nome});
+    b.onclick = () => { filterStatus = s.id; render(); };
+    return b;
+  }));
+
+  const nxt = PIECES.find(p => get(p.id).status !== "pronta");
+  const nb = $("#next");
+  if (nxt) {
+    const ph = PHASES.findIndex(f => f.id === nxt.fase) + 1;
+    nb.replaceChildren(el("span", {class:"eyebrow", text:"Próxima na ordem de produção"}), el("strong", {text: nxt.nome}),
+      el("span", {class:"sub", text:`Etapa ${ph} · ${PHASES[ph-1].nome} · ${statusName(get(nxt.id).status)} · ${checkCount(nxt)}/${nxt.subs.length} etapas`}));
+    nb.onclick = () => openPanel(nxt.id); nb.disabled = false;
+  } else {
+    nb.replaceChildren(el("span", {class:"eyebrow", text:"Ordem de produção"}), el("strong", {text:"Todas as peças estão prontas"}));
+    nb.disabled = true;
+  }
+
+  const list = $("#list");
+  list.replaceChildren(...PHASES.map((f, i) => {
+    const all = PIECES.filter(p => p.fase === f.id);
+    const shown = all.filter(matches);
+    const ready = all.filter(p => get(p.id).status === "pronta").length;
+    const mini = el("div", {class:"mini"}, (() => { const s = el("span"); s.style.width = (ready / all.length * 100) + "%"; return s; })());
+    const head = el("div", {class:"phase-head"},
+      el("span", {class:"phase-num", text:String(i + 1)}),
+      el("div", {class:"t"}, el("h2", {text:f.nome})),
+      mini, el("span", {class:"c", text:`${ready}/${all.length} prontas`}));
+    const rows = el("div", {class:"rows"});
+    if (!shown.length) rows.append(el("div", {class:"empty", text:"Nenhuma peça desta etapa com esse filtro."}));
+    shown.forEach(p => {
+      const s = get(p.id);
+      const meta = el("span", {class:"meta"}, el("span", {text:`${checkCount(p)}/${p.subs.length} etapas`}));
+      if (s.prazo) meta.append(el("span", {text:"Prazo " + fmtDate(s.prazo)}));
+      if (p.dep && s.status !== "pronta") meta.append(el("span", {class:"flag", text:p.dep.split(".")[0]}));
+      if (s.notas.trim()) meta.append(el("span", {class:"note", text:"“" + s.notas.trim().split("\n")[0] + "”"}));
+      const r = el("button", {class:"row", type:"button", "data-status": s.status},
+        el("span", {class:"mono code", text:p.code}),
+        el("span", {}, el("span", {class:"name", text:p.nome}), meta),
+        el("span", {class:"pill", "data-s": s.status, text: statusName(s.status)}));
+      r.onclick = () => openPanel(p.id);
+      rows.append(r);
+    });
+    return el("section", {class:"phase"}, head, rows);
+  }));
+}
+
+/* ---------- painel ---------- */
+let lastFocus = null, notesTimer = null;
+function openPanel(id){
+  lastFocus = document.activeElement;
+  openId = id;
+  fillPanel(true);
+  $("#scrim").hidden = false; $("#panel").hidden = false;
+  $("#close").focus();
+}
+function closePanel(){
+  flushNotes();
+  openId = null;
+  $("#scrim").hidden = true; $("#panel").hidden = true;
+  if (lastFocus) lastFocus.focus();
+}
+function fillPanel(full){
+  const p = PIECES.find(x => x.id === openId); if (!p) return;
+  const s = get(p.id);
+  const fi = PHASES.findIndex(f => f.id === p.fase);
+  $("#p-code").textContent = p.code;
+  $("#p-name").textContent = p.nome;
+  $("#p-phase").textContent = `Etapa ${fi + 1} de ${PHASES.length} · ${PHASES[fi].nome}`;
+  $("#p-brief").textContent = p.brief;
+  $("#p-dep").hidden = !p.dep; $("#p-dep").textContent = p.dep || "";
+  $("#p-status").replaceChildren(...STATUS.map(st => {
+    const b = el("button", {type:"button", "aria-pressed": String(s.status === st.id), text: st.nome});
+    b.onclick = () => change(p.id, {status: st.id});
+    return b;
+  }));
+  $("#p-subcount").textContent = `${checkCount(p)} de ${p.subs.length}`;
+  $("#p-checks").replaceChildren(...p.subs.map((t, i) => {
+    const inp = el("input", {type:"checkbox", id:`chk-${p.id}-${i}`});
+    inp.checked = !!s.checks[i];
+    inp.onchange = () => {
+      const checks = {...get(p.id).checks}; if (inp.checked) checks[i] = true; else delete checks[i];
+      const patch = {checks};
+      if (inp.checked && get(p.id).status === "fazer") patch.status = "criando";
+      change(p.id, patch);
+    };
+    return el("li", {}, el("label", {for:`chk-${p.id}-${i}`}, inp, el("span", {text:t})));
+  }));
+  const notes = $("#p-notes");
+  if (full || document.activeElement !== notes) notes.value = s.notas;
+  const due = $("#p-due"); if (full || document.activeElement !== due) due.value = s.prazo;
+  const link = $("#p-link"); if (full || document.activeElement !== link) link.value = s.link;
+  const ok = /^https?:\/\//i.test(s.link);
+  $("#p-open").hidden = !ok; if (ok) $("#p-open").href = s.link;
+  if (full) setSaved(s.atualizadoEm ? "Última edição " + new Date(s.atualizadoEm).toLocaleString("pt-BR", {day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit"}) : "");
+}
+function flushNotes(){
+  if (!notesTimer || !openId) return;
+  clearTimeout(notesTimer); notesTimer = null;
+  change(openId, {notas: $("#p-notes").value});
+}
+$("#p-notes").addEventListener("input", () => {
+  setSaved("Salvando…");
+  clearTimeout(notesTimer);
+  notesTimer = setTimeout(() => { notesTimer = null; if (openId) change(openId, {notas: $("#p-notes").value}); }, 900);
+});
+$("#p-notes").addEventListener("blur", flushNotes);
+$("#p-due").addEventListener("change", e => openId && change(openId, {prazo: e.target.value}));
+$("#p-link").addEventListener("change", e => openId && change(openId, {link: e.target.value.trim()}));
+$("#close").onclick = closePanel;
+$("#scrim").onclick = closePanel;
+document.addEventListener("keydown", e => { if (e.key === "Escape" && openId) closePanel(); });
+$("#q").addEventListener("input", e => { query = e.target.value.trim().toLowerCase(); render(); });
+
+/* ---------- início ---------- */
+Object.assign(state, lsLoad());
+render();
+setSync("0", "Conectando ao salvamento…");
+(async () => {
+  try { db = await (window.claude && window.claude.use ? window.claude.use("db") : null); } catch { db = null; }
+  if (!db) { setSync("warn", "Salvando só neste navegador"); return; }
+  db.collection("pecas").onSnapshot(snap => {
+    snap.docs.forEach(d => { if (d.exists) { const v = d.data(); state[d.id] = {...blank(), ...v, checks: {...(v.checks || {})}}; } });
+    setSync("1", "Salvo na nuvem · compartilhado com quem tem acesso");
+    render();
+    if (openId) fillPanel(false);
+  }, () => setSync("warn", "Conexão perdida · recarregue a página"));
+})();
+</script>
