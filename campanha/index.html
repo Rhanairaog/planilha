@@ -60,7 +60,10 @@ button{font:inherit;color:inherit;cursor:pointer}
 /* Topo */
 .top{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:24px;align-items:end}
 .top p{margin:8px 0 0;color:var(--ink-2);max-width:56ch}
-.sync{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);margin-top:12px}
+.top-links{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;margin-top:14px}
+.drive{display:inline-flex;align-items:center;gap:6px;background:var(--accent);color:var(--on-accent);text-decoration:none;font-weight:600;font-size:13.5px;padding:8px 14px;border-radius:99px}
+.drive:hover{filter:brightness(1.08)}
+.sync{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
 .sync i{width:7px;height:7px;border-radius:50%;background:var(--s-fazer)}
 .sync[data-on="1"] i{background:var(--s-pronta)}
 .sync[data-on="warn"] i{background:var(--warn)}
@@ -153,7 +156,10 @@ textarea{min-height:170px;resize:vertical;line-height:1.55}
       <div class="eyebrow">Campanha · Drops 1, 2 e 3</div>
       <h1>Checklist dos Drops</h1>
       <p>Todas as peças da campanha na ordem de produção. Toque em uma peça para marcar etapas, mudar o status e escrever as anotações dela.</p>
-      <div class="sync" id="sync" data-on="0"><i></i><span>Conectando ao salvamento…</span></div>
+      <div class="top-links">
+        <a class="drive" href="https://drive.google.com/drive/folders/1MD19hBnKUnimQ6OzfnHnpJRTTJ09BwyK?usp=sharing" target="_blank" rel="noopener">Abrir a pasta da campanha no Drive ↗</a>
+        <div class="sync" id="sync" data-on="0"><i></i><span>Conectando ao salvamento…</span></div>
+      </div>
     </div>
     <button class="next" id="next" type="button"></button>
   </header>
@@ -209,7 +215,7 @@ textarea{min-height:170px;resize:vertical;line-height:1.55}
       </div>
       <div class="sec">
         <div class="lbl"><label class="eyebrow" for="p-link">Link do arquivo</label><a class="open-link" id="p-open" target="_blank" rel="noopener" hidden>Abrir</a></div>
-        <input id="p-link" type="url" placeholder="Canva, Drive, Figma…">
+        <input id="p-link" type="url" placeholder="Link do arquivo desta peça no Drive">
       </div>
     </div>
   </div>
