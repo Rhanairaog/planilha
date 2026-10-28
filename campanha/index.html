@@ -216,6 +216,17 @@ a.fname{display:block;text-decoration:none}
 .edit-form input,.edit-form select{width:100%;font:inherit;font-size:14.5px;color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:9px 12px;margin-bottom:6px}
 textarea.short{min-height:110px;margin-bottom:6px}
 @media (max-width:760px){.row.org{grid-template-columns:22px minmax(0,1fr) auto}}
+.phase-head h2{min-width:0}
+.ph-edit{border:0;background:transparent;color:var(--muted);font-size:12.5px;font-weight:600;padding:4px 8px;border-radius:6px;opacity:.7}
+.phase-head:hover .ph-edit,.ph-edit:focus-visible{opacity:1}
+.ph-edit:hover{color:var(--accent);background:var(--accent-soft)}
+.ph-form{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.ph-form input{flex:1 1 220px;min-width:0;font-family:var(--f-display);font-size:20px;font-weight:600;color:var(--ink);background:var(--surface);border:1px solid var(--accent);border-radius:8px;padding:4px 10px}
+.phase-notes-wrap{display:flex;flex-direction:column;gap:2px}
+.phase-notes{width:100%;min-height:0;resize:none;overflow:hidden;font:inherit;font-size:14px;line-height:1.5;color:var(--ink);background:transparent;border:1px dashed var(--line-strong);border-radius:10px;padding:9px 12px}
+.phase-notes:focus{background:var(--surface);border-style:solid;border-color:var(--accent);outline:none}
+.phase-notes::placeholder{color:var(--muted)}
+.phase-saved{font-size:12px;color:var(--muted);min-height:16px;padding-left:2px}
 .toast button{border:0;background:transparent;color:var(--bg);font-weight:700;text-decoration:underline;padding:4px 6px}
 
 @media (max-width:760px){
@@ -407,6 +418,9 @@ const STATUS = [
   {id:"revisao", nome:"Em revisão"},
   {id:"pronta", nome:"Pronta"},
 ];
+/* Etapas de produção: nome e anotações editáveis, guardados em fases/<id>. */
+const fases = {};
+const phaseName = id => (fases[id] && fases[id].nome) || (PHASES.find(f => f.id === id) || {}).nome || "";
 const statusName = id => (STATUS.find(s => s.id === id) || STATUS[0]).nome;
 
 /* Estado: um documento por peça em pecas/<id>. */
@@ -832,14 +846,15 @@ function render(){
   if (nxt) {
     const ph = PHASES.findIndex(f => f.id === nxt.fase) + 1;
     nb.replaceChildren(el("span", {class:"eyebrow", text:"Próxima na ordem de produção"}), el("strong", {text: nxt.nome}),
-      el("span", {class:"sub", text:`Etapa ${ph} · ${PHASES[ph-1].nome} · ${statusName(get(nxt.id).status)} · ${checkCount(nxt)}/${subsOf(nxt).length} etapas`}));
+      el("span", {class:"sub", text:`Etapa ${ph} · ${phaseName(nxt.fase)} · ${statusName(get(nxt.id).status)} · ${checkCount(nxt)}/${subsOf(nxt).length} etapas`}));
     nb.onclick = () => openPanel(nxt.id); nb.disabled = false;
   } else {
     nb.replaceChildren(el("span", {class:"eyebrow", text:"Ordem de produção"}), el("strong", {text:"Todas as peças estão prontas"}));
     nb.disabled = true;
   }
 
-  const focused = document.activeElement && document.activeElement.id;
+  const fe = document.activeElement, focused = fe && fe.id;
+  const sel = fe && typeof fe.selectionStart === "number" ? [fe.selectionStart, fe.selectionEnd] : null;
   $("#status-filter").hidden = organizing; $("#q").hidden = organizing; $("#org-hint").hidden = !organizing;
   const ob = $("#org"); ob.setAttribute("aria-pressed", String(organizing)); ob.textContent = organizing ? "Concluir organização" : "Organizar a ordem";
   const sections = PHASES.map((f, i) => {
@@ -849,14 +864,14 @@ function render(){
     const mini = el("div", {class:"mini"}, (() => { const s = el("span"); s.style.width = (all.length ? ready / all.length * 100 : 0) + "%"; return s; })());
     const head = el("div", {class:"phase-head"},
       el("span", {class:"phase-num", text:String(i + 1)}),
-      el("div", {class:"t"}, el("h2", {text:f.nome})),
+      el("div", {class:"t"}, phaseTitle(f.id)),
       mini, el("span", {class:"c", text:`${ready}/${all.length} prontas`}));
     const rows = el("div", {class:"rows"});
     if (!all.length) rows.append(el("div", {class:"empty", text: organizing ? "Arraste uma atividade para cá." : "Nenhuma atividade nesta etapa."}));
     else if (!shown.length) rows.append(el("div", {class:"empty", text:"Nenhuma peça desta etapa com esse filtro."}));
     shown.forEach(p => rows.append(organizing ? orgRow(p, live) : pieceRow(p)));
     if (organizing) wireDrop(rows, "piece", ".row", (id, k) => placePiece(id, f.id, k));
-    return el("section", {class:"phase"}, head, rows, addPieceControl(f.id));
+    return el("section", {class:"phase"}, head, phaseNotes(f.id), rows, addPieceControl(f.id));
   });
   const gone = allPieces().filter(p => get(p.id).excluida);
   if (gone.length) {
@@ -869,7 +884,11 @@ function render(){
     sections.push(box);
   }
   $("#list").replaceChildren(...sections);
-  if (focused && focused.startsWith("new-")) { const n = document.getElementById(focused); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } }
+  if (focused && /^(new-|ph-)/.test(focused)) {
+    const n = document.getElementById(focused);
+    if (n && n !== document.activeElement) { n.focus(); if (sel) n.setSelectionRange(sel[0], sel[1]); }
+  }
+  document.querySelectorAll(".phase-notes").forEach(grow);
 }
 function pieceRow(p){
   const s = get(p.id);
@@ -900,6 +919,72 @@ function orgRow(p, live){
     el("span", {class:"movebtns"}, mk(-1, "Subir", "↑"), mk(1, "Descer", "↓")));
   draggable(r, "piece", p.id);
   return r;
+}
+/* Título da etapa: clique em "Renomear" para editar; vazio volta ao nome original. */
+let renaming = null;
+function phaseTitle(fid){
+  if (!renaming || renaming.fase !== fid) {
+    const b = el("button", {class:"ph-edit", type:"button", title:"Renomear etapa", "aria-label":`Renomear ${phaseName(fid)}`, text:"Renomear"});
+    b.onclick = () => { renaming = {fase: fid, value: phaseName(fid)}; render(); const i = $("#ph-name-" + fid); i.focus(); i.select(); };
+    return el("div", {style:"display:flex;align-items:center;gap:6px;flex-wrap:wrap"}, el("h2", {text: phaseName(fid)}), b);
+  }
+  const inp = el("input", {type:"text", id:"ph-name-" + fid, autocomplete:"off", "aria-label":"Nome da etapa"});
+  inp.value = renaming.value;
+  inp.oninput = () => { renaming.value = inp.value; };
+  const cancel = () => { renaming = null; render(); };
+  inp.onkeydown = e => { if (e.key === "Escape") { e.stopPropagation(); cancel(); } };
+  const no = el("button", {class:"btn-plain", type:"button", text:"Cancelar"});
+  no.onclick = cancel;
+  const form = el("form", {class:"ph-form"}, inp, el("button", {class:"btn-primary", type:"submit", text:"Salvar"}), no);
+  form.onsubmit = e => {
+    e.preventDefault();
+    const nome = inp.value.trim(), original = PHASES.find(f => f.id === fid).nome;
+    renaming = null;
+    changePhase(fid, {nome: nome && nome !== original ? nome : ""});
+    toast(nome && nome !== original ? `Etapa renomeada para “${nome}”.` : `A etapa voltou ao nome original.`, null);
+  };
+  return form;
+}
+/* O campo de anotações é o mesmo elemento entre um render e outro, para não perder o que está sendo digitado. */
+const phaseNoteEls = {};
+function grow(t){ t.style.height = "auto"; t.style.height = (t.scrollHeight + 2) + "px"; }
+function phaseNotes(fid){
+  let box = phaseNoteEls[fid];
+  if (!box) {
+    const t = el("textarea", {class:"phase-notes", id:"ph-notes-" + fid, rows:"1", "aria-label":"Anotações da etapa",
+      placeholder:"Anotações desta etapa: decisões, prazos, referências, o que falta…"});
+    const st = el("span", {class:"phase-saved", "aria-live":"polite"});
+    let timer = null;
+    const flush = () => { if (!timer) return; clearTimeout(timer); timer = null; changePhase(fid, {notas: t.value}, st); };
+    t.addEventListener("input", () => { grow(t); st.textContent = "Salvando…"; clearTimeout(timer); timer = setTimeout(() => { timer = null; changePhase(fid, {notas: t.value}, st); }, 900); });
+    t.addEventListener("blur", flush);
+    box = phaseNoteEls[fid] = el("div", {class:"phase-notes-wrap"}, t, st);
+    box._t = t;
+  }
+  const t = box._t, v = (fases[fid] && fases[fid].notas) || "";
+  if (document.activeElement !== t && t.value !== v) t.value = v;
+  return box;
+}
+const phaseWriting = {}, phasePending = {};
+function changePhase(fid, patch, statusEl){
+  fases[fid] = {...(fases[fid] || {nome: "", notas: ""}), ...patch};
+  render();
+  if (openId) fillPanel(false);
+  persistPhase(fid, statusEl);
+}
+async function persistPhase(fid, statusEl){
+  if (!db) { try { localStorage.setItem(LS_KEY + "-fases", JSON.stringify(fases)); } catch {} if (statusEl) statusEl.textContent = "Salvo neste navegador"; return; }
+  if (phaseWriting[fid]) { phasePending[fid] = statusEl || true; return; }
+  phaseWriting[fid] = true;
+  try {
+    await db.doc("fases/" + fid).set({nome: "", notas: "", ...fases[fid], atualizadoEm: new Date().toISOString()});
+    if (statusEl) statusEl.textContent = "Salvo";
+  } catch {
+    if (statusEl) statusEl.textContent = "Não foi possível salvar. Tente de novo.";
+  } finally {
+    phaseWriting[fid] = false;
+    if (phasePending[fid]) { const s = phasePending[fid]; phasePending[fid] = false; persistPhase(fid, s === true ? null : s); }
+  }
 }
 let addDraft = null;
 function addPieceControl(fase){
@@ -950,7 +1035,7 @@ function fillPanel(full){
   const fi = PHASES.findIndex(f => f.id === p.fase);
   $("#p-code").textContent = p.code;
   $("#p-name").textContent = p.nome;
-  $("#p-phase").textContent = `Etapa ${fi + 1} de ${PHASES.length} · ${PHASES[fi].nome}`;
+  $("#p-phase").textContent = `Etapa ${fi + 1} de ${PHASES.length} · ${phaseName(p.fase)}`;
   $("#p-brief").textContent = p.brief || "Sem briefing ainda. Clique em “Editar” para escrever.";
   if (full) { $("#p-editform").hidden = true; $("#p-brief").hidden = false; }
   $("#p-dep").hidden = !p.dep; $("#p-dep").textContent = p.dep || "";
@@ -1014,8 +1099,8 @@ $("#sub-form").addEventListener("submit", e => {
   setSubs(p, [...subsOf(p), {id: "c" + uid(), t}]);
   $("#sub-new").value = ""; $("#sub-new").focus();
 });
-$("#e-fase").replaceChildren(...PHASES.map((f, i) => el("option", {value: f.id, text: `${i + 1}. ${f.nome}`})));
 $("#p-edit").onclick = () => {
+  $("#e-fase").replaceChildren(...PHASES.map((f, i) => el("option", {value: f.id, text: `${i + 1}. ${phaseName(f.id)}`})));
   const p = piece(openId);
   $("#e-name").value = p.nome; $("#e-brief").value = p.brief; $("#e-fase").value = p.fase;
   $("#p-brief").hidden = true; $("#p-editform").hidden = false; $("#e-name").focus();
@@ -1054,6 +1139,7 @@ $("#q").addEventListener("input", e => { query = e.target.value.trim().toLowerCa
 
 /* ---------- início ---------- */
 Object.assign(state, lsLoad());
+try { Object.assign(fases, JSON.parse(localStorage.getItem(LS_KEY + "-fases") || "{}")); } catch {}
 render();
 setSync("0", "Conectando ao salvamento…");
 (async () => {
@@ -1068,6 +1154,11 @@ setSync("0", "Conectando ao salvamento…");
     renderLinks();
     setSync("warn", "Salvando só neste navegador"); return;
   }
+  db.collection("fases").onSnapshot(snap => {
+    snap.docs.forEach(d => { if (d.exists) { const v = d.data(); fases[d.id] = {nome: v.nome || "", notas: v.notas || ""}; } });
+    render();
+    if (openId) fillPanel(false);
+  }, () => {});
   db.doc("apoio/links").onSnapshot(d => {
     links = d.exists ? [...(d.data().links || [])] : [];
     renderLinks();
