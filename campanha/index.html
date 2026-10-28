@@ -139,6 +139,42 @@ textarea{min-height:170px;resize:vertical;line-height:1.55}
 .saved{font-size:12.5px;color:var(--muted);min-height:18px}
 .lbl{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .open-link{font-size:13px;color:var(--accent);font-weight:600}
+.checks li{display:flex;align-items:flex-start;gap:4px}
+.checks li label{flex:1;min-width:0}
+.del-sub{border:0;background:transparent;color:var(--muted);width:30px;height:30px;border-radius:7px;font-size:16px;line-height:1;flex:none;opacity:.55}
+.checks li:hover .del-sub,.del-sub:focus-visible{opacity:1}
+.del-sub:hover{background:var(--warn-bg);color:var(--warn)}
+.link-btn{border:0;background:transparent;padding:4px 0;color:var(--accent);font-size:13px;font-weight:600;text-align:left}
+.danger-zone{border-top:1px solid var(--line);padding-top:18px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.btn-danger{border:1px solid var(--warn);background:transparent;color:var(--warn);border-radius:8px;padding:8px 14px;font-size:13.5px;font-weight:600}
+.btn-danger.solid{background:var(--warn);color:var(--surface)}
+.btn-plain{border:1px solid var(--line);background:var(--surface-2);border-radius:8px;padding:8px 14px;font-size:13.5px;font-weight:600}
+.confirm-text{font-size:13.5px;color:var(--ink-2);flex-basis:100%}
+.trash{border:1px dashed var(--line-strong);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.trash summary{cursor:pointer;font-weight:600;color:var(--ink-2)}
+.trash-row{display:flex;align-items:center;gap:12px;justify-content:space-between;padding:6px 0;border-top:1px solid var(--line)}
+.trash-row span{min-width:0;color:var(--muted)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:30;background:var(--ink);color:var(--bg);border-radius:12px;padding:10px 12px 10px 16px;display:flex;gap:14px;align-items:center;box-shadow:var(--shadow);font-size:14px;max-width:calc(100% - 32px)}
+.apoio{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:18px}
+.apoio-head{display:flex;flex-direction:column;gap:6px}
+.apoio-head p{margin:0;color:var(--ink-2);font-size:14px}
+.dropwrap{display:flex;flex-direction:column;gap:6px;position:relative}
+.drop{display:flex;flex-direction:column;gap:4px;border:1.5px dashed var(--line-strong);border-radius:12px;padding:16px;cursor:pointer;background:var(--surface-2)}
+.drop strong{color:var(--accent)}
+.drop:hover,.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.drop.busy{opacity:.6;pointer-events:none}
+.sr{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.sr:focus-visible + .drop{outline:2px solid var(--accent);outline-offset:2px}
+.files{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.files li{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:6px 6px 6px 8px;border-radius:10px;border:1px solid var(--line);background:var(--surface)}
+.files img,.ftype{width:44px;height:44px;border-radius:6px;object-fit:cover;flex:none;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-family:var(--f-mono);font-size:10px;font-weight:600}
+.finfo{flex:1;min-width:0;display:flex;flex-direction:column}
+.fname{color:var(--ink);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:none}
+.fname:hover{text-decoration:underline}
+.fconfirm{flex-basis:100%;display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;color:var(--ink-2);padding:4px 0 2px}
+.drop-status{min-height:18px}
+@media (max-width:760px){.apoio{grid-template-columns:1fr}}
+.toast button{border:0;background:transparent;color:var(--bg);font-weight:700;text-decoration:underline;padding:4px 6px}
 
 @media (max-width:760px){
   .top{grid-template-columns:1fr}
@@ -170,6 +206,15 @@ textarea{min-height:170px;resize:vertical;line-height:1.55}
     </div>
     <div class="bar" id="bar"></div>
     <div class="legend" id="legend"></div>
+  </section>
+
+  <section class="apoio" aria-labelledby="apoio-t">
+    <div class="apoio-head">
+      <h2 id="apoio-t">Arquivos de apoio</h2>
+      <p>Referências que valem para a campanha toda. Arquivos de uma peça específica ficam dentro da ficha dela.</p>
+      <div id="apoio-drop"></div>
+    </div>
+    <div id="apoio-files"><p class="empty">Carregando arquivos…</p></div>
   </section>
 
   <div class="filters" role="toolbar" aria-label="Filtros">
@@ -218,8 +263,15 @@ textarea{min-height:170px;resize:vertical;line-height:1.55}
         <input id="p-link" type="url" placeholder="Link do arquivo desta peça no Drive">
       </div>
     </div>
+    <div class="sec">
+      <span class="eyebrow">Arquivos desta peça</span>
+      <div id="p-drop"></div>
+      <div id="p-files"></div>
+    </div>
+    <div class="danger-zone" id="p-danger"></div>
   </div>
 </aside>
+<div class="toast" id="toast" hidden role="status"><span id="toast-text"></span><button type="button" id="toast-undo">Desfazer</button></div>
 
 <script>
 const FINAL = ["Revisão de pontuação, acentos e gramática", "Arquivo final exportado"];
@@ -275,8 +327,8 @@ const statusName = id => (STATUS.find(s => s.id === id) || STATUS[0]).nome;
 
 /* Estado: um documento por peça em pecas/<id>. */
 const state = {};
-const blank = () => ({status:"fazer", notas:"", link:"", prazo:"", checks:{}});
-const get = id => state[id] || blank();
+const blank = () => ({status:"fazer", notas:"", link:"", prazo:"", checks:{}, ocultas:{}, excluida:false, arquivos:[]});
+const get = id => ({...blank(), ...state[id]});
 let db = null, filterStatus = "todas", query = "", openId = null;
 
 const $ = s => document.querySelector(s);
@@ -289,7 +341,124 @@ const el = (tag, attrs = {}, ...kids) => {
   return n;
 };
 const fmtDate = d => { if (!d) return ""; const [y,m,dd] = d.split("-"); return `${dd}/${m}`; };
-const checkCount = p => p.subs.filter((_, i) => get(p.id).checks[i]).length;
+/* Etapas excluídas ficam em `ocultas` (pelo índice original) para poderem voltar. */
+const visibleSubs = p => p.subs.map((t, i) => ({t, i})).filter(x => !get(p.id).ocultas[x.i]);
+const checkCount = p => visibleSubs(p).filter(x => get(p.id).checks[x.i]).length;
+const active = () => PIECES.filter(p => !get(p.id).excluida);
+
+let toastTimer = null, toastUndo = null;
+function toast(text, undo){
+  $("#toast-text").textContent = text;
+  toastUndo = undo;
+  $("#toast").hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { $("#toast").hidden = true; toastUndo = null; }, 7000);
+}
+function removePiece(id){
+  const p = PIECES.find(x => x.id === id);
+  closePanel();
+  change(id, {excluida: true});
+  toast(`“${p.nome}” foi excluída.`, () => change(id, {excluida: false}));
+}
+function removeSub(p, i){
+  const ocultas = {...get(p.id).ocultas, [i]: true};
+  change(p.id, {ocultas});
+  toast(`Etapa “${p.subs[i]}” excluída.`, () => { const o = {...get(p.id).ocultas}; delete o[i]; change(p.id, {ocultas: o}); });
+}
+
+/* ---------- arquivos de apoio ----------
+   O arquivo vai para o armazenamento do painel; o documento guarda só o id e o nome. */
+let assets = null, geral = {arquivos: []}, geralChain = Promise.resolve();
+const ACCEPT = "image/png,image/jpeg,image/gif,image/webp,image/svg+xml,video/mp4,video/webm,application/pdf,.csv,.md,.json,.txt";
+const TEXT_TYPES = {csv:"text/csv", md:"text/markdown", json:"application/json", txt:"text/plain"};
+const UP_ERR = {
+  too_large:"passa de 20 MB (SVG: 2 MB)",
+  unsupported_type:"tipo não aceito; salve em PDF ou como imagem",
+  quota_or_state:"o espaço de arquivos do painel acabou",
+  rate_limited:"muitos envios seguidos; espere um pouco e tente de novo",
+};
+const NO_UPLOAD = "O envio de arquivos funciona quando o painel está aberto no Claude por quem pode editá-lo.";
+const fmtSize = b => b < 1048576 ? Math.max(1, Math.round(b / 1024)) + " KB" : (b / 1048576).toFixed(1).replace(".", ",") + " MB";
+const typeLabel = f => f.tipo === "application/pdf" ? "PDF" : f.tipo.startsWith("video/") ? "VÍDEO" : (f.nome.split(".").pop() || "ARQ").toUpperCase().slice(0, 4);
+
+async function uploadAll(files, status){
+  const out = [], fails = [];
+  for (const f of files) {
+    status(`Enviando ${f.name}…`);
+    const ext = (f.name.split(".").pop() || "").toLowerCase();
+    const opts = TEXT_TYPES[ext] ? {type: TEXT_TYPES[ext]} : {};
+    try {
+      const r = await assets.upload(f, opts);
+      out.push({id: r.id, nome: f.name, tipo: r.contentType, tamanho: r.sizeBytes, em: new Date().toISOString()});
+    } catch (e) {
+      fails.push(`${f.name}: ${UP_ERR[e && e.code] || "não foi possível enviar"}`);
+    }
+  }
+  status(fails.length ? fails.join(" · ") : out.length === 1 ? "1 arquivo enviado." : `${out.length} arquivos enviados.`);
+  return out;
+}
+function dropZone(id, onFiles){
+  if (!assets) return el("p", {class:"empty", text: NO_UPLOAD});
+  const inp = el("input", {type:"file", id, multiple:"", accept: ACCEPT, class:"sr"});
+  const status = el("span", {class:"sub-count drop-status", "aria-live":"polite"});
+  const zone = el("label", {class:"drop", for: id},
+    el("strong", {text:"Enviar arquivos"}),
+    el("span", {class:"sub-count", text:"Clique ou arraste aqui. Imagens, PDF, vídeos MP4 ou WebM e textos, até 20 MB cada."}));
+  const run = async files => {
+    if (!files.length) return;
+    zone.classList.add("busy");
+    const list = await uploadAll([...files], t => status.textContent = t);
+    zone.classList.remove("busy");
+    if (list.length) onFiles(list);
+  };
+  inp.onchange = () => { const fs = [...inp.files]; inp.value = ""; run(fs); };
+  zone.addEventListener("dragover", e => { e.preventDefault(); zone.classList.add("over"); });
+  zone.addEventListener("dragleave", () => zone.classList.remove("over"));
+  zone.addEventListener("drop", e => { e.preventDefault(); zone.classList.remove("over"); run(e.dataTransfer.files); });
+  return el("div", {class:"dropwrap"}, inp, zone, status);
+}
+function fileList(files, onRemove){
+  if (!files.length) return el("p", {class:"empty", text:"Nenhum arquivo enviado ainda."});
+  const ul = el("ul", {class:"files"});
+  files.forEach(f => {
+    const url = "/_blob/" + f.id;
+    let thumb;
+    if (f.tipo.startsWith("image/")) {
+      thumb = el("img", {src: url, alt: "", loading: "lazy"});
+      thumb.onerror = () => thumb.replaceWith(el("span", {class:"ftype", text:"IMG"}));
+    } else thumb = el("span", {class:"ftype", text: typeLabel(f)});
+    const li = el("li", {}, thumb, el("div", {class:"finfo"},
+      el("a", {class:"fname", href: url, target:"_blank", rel:"noopener", text: f.nome}),
+      el("span", {class:"sub-count", text:`${fmtSize(f.tamanho)} · enviado em ${new Date(f.em).toLocaleDateString("pt-BR")}`})));
+    if (assets) {
+      const b = el("button", {class:"del-sub", type:"button", title:"Excluir arquivo", "aria-label":`Excluir ${f.nome}`, text:"×"});
+      b.onclick = () => {
+        if (li.querySelector(".fconfirm")) return;
+        const yes = el("button", {class:"btn-danger solid", type:"button", text:"Excluir"});
+        const no = el("button", {class:"btn-plain", type:"button", text:"Cancelar"});
+        const bar = el("div", {class:"fconfirm"}, el("span", {text:"Excluir este arquivo? Não dá para desfazer."}), yes, no);
+        no.onclick = () => bar.remove();
+        yes.onclick = () => { onRemove(f); assets.delete(f.id).catch(() => {}); };
+        li.append(bar); no.focus();
+      };
+      li.append(b);
+    }
+    ul.append(li);
+  });
+  return ul;
+}
+function saveGeral(){
+  if (!db) return;
+  geralChain = geralChain.then(() => db.doc("apoio/geral").set({arquivos: geral.arquivos})).catch(() => {});
+}
+function renderApoio(){
+  $("#apoio-files").replaceChildren(fileList(geral.arquivos, f => {
+    geral.arquivos = geral.arquivos.filter(x => x.id !== f.id); renderApoio(); saveGeral();
+  }));
+}
+function pieceDrop(pid){
+  return dropZone("up-" + pid, list => change(pid, {arquivos: [...get(pid).arquivos, ...list]}));
+}
 
 /* ---------- salvamento ---------- */
 const LS_KEY = "checklist-drops-v1";
@@ -329,14 +498,15 @@ function matches(p){
   return hay.includes(query);
 }
 function render(){
-  const total = PIECES.length;
+  const live = active();
+  const total = live.length;
   const counts = Object.fromEntries(STATUS.map(s => [s.id, 0]));
-  PIECES.forEach(p => counts[get(p.id).status]++);
+  live.forEach(p => counts[get(p.id).status]++);
   const done = counts.pronta;
-  $("#pct").textContent = Math.round(done / total * 100) + "%";
+  $("#pct").textContent = (total ? Math.round(done / total * 100) : 0) + "%";
   $("#pct-sub").textContent = `${done} de ${total} peças prontas`;
   $("#bar").replaceChildren(...["pronta","revisao","criando"].map(s => {
-    const b = el("span"); b.style.width = (counts[s] / total * 100) + "%"; b.style.background = `var(--s-${s})`; return b;
+    const b = el("span"); b.style.width = (total ? counts[s] / total * 100 : 0) + "%"; b.style.background = `var(--s-${s})`; return b;
   }));
   $("#legend").replaceChildren(...STATUS.slice().reverse().map(s => {
     const i = el("i"); i.style.background = `var(--s-${s.id})`;
@@ -349,12 +519,12 @@ function render(){
     return b;
   }));
 
-  const nxt = PIECES.find(p => get(p.id).status !== "pronta");
+  const nxt = live.find(p => get(p.id).status !== "pronta");
   const nb = $("#next");
   if (nxt) {
     const ph = PHASES.findIndex(f => f.id === nxt.fase) + 1;
     nb.replaceChildren(el("span", {class:"eyebrow", text:"Próxima na ordem de produção"}), el("strong", {text: nxt.nome}),
-      el("span", {class:"sub", text:`Etapa ${ph} · ${PHASES[ph-1].nome} · ${statusName(get(nxt.id).status)} · ${checkCount(nxt)}/${nxt.subs.length} etapas`}));
+      el("span", {class:"sub", text:`Etapa ${ph} · ${PHASES[ph-1].nome} · ${statusName(get(nxt.id).status)} · ${checkCount(nxt)}/${visibleSubs(nxt).length} etapas`}));
     nb.onclick = () => openPanel(nxt.id); nb.disabled = false;
   } else {
     nb.replaceChildren(el("span", {class:"eyebrow", text:"Ordem de produção"}), el("strong", {text:"Todas as peças estão prontas"}));
@@ -362,21 +532,23 @@ function render(){
   }
 
   const list = $("#list");
-  list.replaceChildren(...PHASES.map((f, i) => {
-    const all = PIECES.filter(p => p.fase === f.id);
+  const sections = PHASES.map((f, i) => {
+    const all = live.filter(p => p.fase === f.id);
     const shown = all.filter(matches);
     const ready = all.filter(p => get(p.id).status === "pronta").length;
-    const mini = el("div", {class:"mini"}, (() => { const s = el("span"); s.style.width = (ready / all.length * 100) + "%"; return s; })());
+    const mini = el("div", {class:"mini"}, (() => { const s = el("span"); s.style.width = (all.length ? ready / all.length * 100 : 0) + "%"; return s; })());
     const head = el("div", {class:"phase-head"},
       el("span", {class:"phase-num", text:String(i + 1)}),
       el("div", {class:"t"}, el("h2", {text:f.nome})),
       mini, el("span", {class:"c", text:`${ready}/${all.length} prontas`}));
     const rows = el("div", {class:"rows"});
-    if (!shown.length) rows.append(el("div", {class:"empty", text:"Nenhuma peça desta etapa com esse filtro."}));
+    if (!all.length) rows.append(el("div", {class:"empty", text:"Todas as peças desta etapa foram excluídas."}));
+    else if (!shown.length) rows.append(el("div", {class:"empty", text:"Nenhuma peça desta etapa com esse filtro."}));
     shown.forEach(p => {
       const s = get(p.id);
-      const meta = el("span", {class:"meta"}, el("span", {text:`${checkCount(p)}/${p.subs.length} etapas`}));
+      const meta = el("span", {class:"meta"}, el("span", {text:`${checkCount(p)}/${visibleSubs(p).length} etapas`}));
       if (s.prazo) meta.append(el("span", {text:"Prazo " + fmtDate(s.prazo)}));
+      if (s.arquivos.length) meta.append(el("span", {text: s.arquivos.length === 1 ? "1 arquivo" : `${s.arquivos.length} arquivos`}));
       if (p.dep && s.status !== "pronta") meta.append(el("span", {class:"flag", text:p.dep.split(".")[0]}));
       if (s.notas.trim()) meta.append(el("span", {class:"note", text:"“" + s.notas.trim().split("\n")[0] + "”"}));
       const r = el("button", {class:"row", type:"button", "data-status": s.status},
@@ -387,7 +559,18 @@ function render(){
       rows.append(r);
     });
     return el("section", {class:"phase"}, head, rows);
-  }));
+  });
+  const gone = PIECES.filter(p => get(p.id).excluida);
+  if (gone.length) {
+    const box = el("details", {class:"trash"}, el("summary", {text:`Peças excluídas (${gone.length})`}));
+    gone.forEach(p => {
+      const b = el("button", {class:"btn-plain", type:"button", text:"Restaurar"});
+      b.onclick = () => { change(p.id, {excluida: false}); toast(`“${p.nome}” voltou para a lista.`, null); };
+      box.append(el("div", {class:"trash-row"}, el("span", {text:`${p.code} · ${p.nome}`}), b));
+    });
+    sections.push(box);
+  }
+  list.replaceChildren(...sections);
 }
 
 /* ---------- painel ---------- */
@@ -419,8 +602,10 @@ function fillPanel(full){
     b.onclick = () => change(p.id, {status: st.id});
     return b;
   }));
-  $("#p-subcount").textContent = `${checkCount(p)} de ${p.subs.length}`;
-  $("#p-checks").replaceChildren(...p.subs.map((t, i) => {
+  const vis = visibleSubs(p);
+  $("#p-subcount").textContent = `${checkCount(p)} de ${vis.length}`;
+  const hiddenCount = p.subs.length - vis.length;
+  const items = vis.map(({t, i}) => {
     const inp = el("input", {type:"checkbox", id:`chk-${p.id}-${i}`});
     inp.checked = !!s.checks[i];
     inp.onchange = () => {
@@ -429,8 +614,18 @@ function fillPanel(full){
       if (inp.checked && get(p.id).status === "fazer") patch.status = "criando";
       change(p.id, patch);
     };
-    return el("li", {}, el("label", {for:`chk-${p.id}-${i}`}, inp, el("span", {text:t})));
-  }));
+    const del = el("button", {class:"del-sub", type:"button", "aria-label":`Excluir a etapa ${t}`, title:"Excluir etapa", text:"×"});
+    del.onclick = () => removeSub(p, i);
+    return el("li", {}, el("label", {for:`chk-${p.id}-${i}`}, inp, el("span", {text:t})), del);
+  });
+  if (hiddenCount) {
+    const r = el("button", {class:"link-btn", type:"button", text:`Restaurar etapas excluídas (${hiddenCount})`});
+    r.onclick = () => change(p.id, {ocultas: {}});
+    items.push(el("li", {}, r));
+  }
+  $("#p-checks").replaceChildren(...items);
+  if (full) { dangerIdle(p); $("#p-drop").replaceChildren(pieceDrop(p.id)); }
+  $("#p-files").replaceChildren(fileList(s.arquivos, f => change(p.id, {arquivos: get(p.id).arquivos.filter(x => x.id !== f.id)})));
   const notes = $("#p-notes");
   if (full || document.activeElement !== notes) notes.value = s.notas;
   const due = $("#p-due"); if (full || document.activeElement !== due) due.value = s.prazo;
@@ -439,6 +634,19 @@ function fillPanel(full){
   $("#p-open").hidden = !ok; if (ok) $("#p-open").href = s.link;
   if (full) setSaved(s.atualizadoEm ? "Última edição " + new Date(s.atualizadoEm).toLocaleString("pt-BR", {day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit"}) : "");
 }
+function dangerIdle(p){
+  const b = el("button", {class:"btn-danger", type:"button", text:"Excluir esta peça"});
+  b.onclick = () => {
+    const yes = el("button", {class:"btn-danger solid", type:"button", text:"Sim, excluir"});
+    const no = el("button", {class:"btn-plain", type:"button", text:"Cancelar"});
+    yes.onclick = () => removePiece(p.id);
+    no.onclick = () => dangerIdle(p);
+    $("#p-danger").replaceChildren(el("span", {class:"confirm-text", text:"A peça sai da lista e da contagem. As anotações ficam guardadas e você pode restaurá-la em “Peças excluídas”."}), yes, no);
+    no.focus();
+  };
+  $("#p-danger").replaceChildren(b);
+}
+$("#toast-undo").onclick = () => { if (toastUndo) toastUndo(); $("#toast").hidden = true; toastUndo = null; };
 function flushNotes(){
   if (!notesTimer || !openId) return;
   clearTimeout(notesTimer); notesTimer = null;
@@ -462,10 +670,19 @@ Object.assign(state, lsLoad());
 render();
 setSync("0", "Conectando ao salvamento…");
 (async () => {
-  try { db = await (window.claude && window.claude.use ? window.claude.use("db") : null); } catch { db = null; }
+  const use = name => (window.claude && window.claude.use ? window.claude.use(name) : Promise.resolve(null)).catch(() => null);
+  [db, assets] = await Promise.all([use("db"), use("assets")]);
+  if (!db) assets = null;
+  $("#apoio-drop").replaceChildren(dropZone("up-geral", list => { geral.arquivos = [...geral.arquivos, ...list]; renderApoio(); saveGeral(); }));
+  if (openId) $("#p-drop").replaceChildren(pieceDrop(openId));
+  renderApoio();
   if (!db) { setSync("warn", "Salvando só neste navegador"); return; }
+  db.doc("apoio/geral").onSnapshot(d => {
+    geral = {arquivos: d.exists ? [...(d.data().arquivos || [])] : []};
+    renderApoio();
+  }, () => {});
   db.collection("pecas").onSnapshot(snap => {
-    snap.docs.forEach(d => { if (d.exists) { const v = d.data(); state[d.id] = {...blank(), ...v, checks: {...(v.checks || {})}}; } });
+    snap.docs.forEach(d => { if (d.exists) { const v = d.data(); state[d.id] = {...blank(), ...v, checks: {...(v.checks || {})}, ocultas: {...(v.ocultas || {})}, arquivos: [...(v.arquivos || [])]}; } });
     setSync("1", "Salvo na nuvem · compartilhado com quem tem acesso");
     render();
     if (openId) fillPanel(false);
