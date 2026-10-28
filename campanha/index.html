@@ -194,6 +194,28 @@ a.fname{display:block;text-decoration:none}
 .fconfirm{flex-basis:100%;display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;color:var(--ink-2);padding:4px 0 2px}
 .drop-status{min-height:18px}
 @media (max-width:760px){.apoio{grid-template-columns:1fr}}
+.org-hint{margin:-14px 0 0;font-size:13.5px;color:var(--ink-2);background:var(--accent-soft);border-radius:10px;padding:10px 14px}
+.row.org{grid-template-columns:22px 62px minmax(0,1fr) auto;cursor:grab}
+.handle{color:var(--muted);font-size:16px;line-height:1;cursor:grab;user-select:none;flex:none}
+.movebtns{display:flex;gap:4px}
+.mv{border:1px solid var(--line);background:var(--surface-2);border-radius:7px;width:34px;height:34px;font-size:15px}
+.mv:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+.mv:disabled,.sub-mv:disabled{opacity:.3;cursor:default}
+.dragging{opacity:.35}
+.mark-before{box-shadow:0 -3px 0 0 var(--accent)}
+.mark-end::after{content:"";display:block;height:3px;border-radius:3px;background:var(--accent)}
+.add-row{border:1px dashed var(--line-strong);background:transparent;border-radius:10px;padding:10px 14px;text-align:left;color:var(--muted);font-weight:600;font-size:13.5px;width:100%}
+.add-row:hover{color:var(--accent);border-color:var(--accent)}
+.add-form{display:flex;gap:8px;flex-wrap:wrap}
+.add-form input{flex:1 1 200px;min-width:0;font:inherit;font-size:14.5px;color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:9px 12px}
+.checks .handle{padding:8px 0 0 2px}
+.sub-mv{border:0;background:transparent;color:var(--muted);width:26px;height:30px;border-radius:7px;font-size:14px;flex:none;opacity:.55}
+.checks li:hover .sub-mv:not(:disabled),.sub-mv:focus-visible{opacity:1}
+.sub-mv:hover:not(:disabled){background:var(--surface-2);color:var(--accent)}
+.edit-form{display:flex;flex-direction:column;gap:6px}
+.edit-form input,.edit-form select{width:100%;font:inherit;font-size:14.5px;color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:9px 12px;margin-bottom:6px}
+textarea.short{min-height:110px;margin-bottom:6px}
+@media (max-width:760px){.row.org{grid-template-columns:22px minmax(0,1fr) auto}}
 .toast button{border:0;background:transparent;color:var(--bg);font-weight:700;text-decoration:underline;padding:4px 6px}
 
 @media (max-width:760px){
@@ -258,7 +280,9 @@ a.fname{display:block;text-decoration:none}
   <div class="filters" role="toolbar" aria-label="Filtros">
     <div class="filters" id="status-filter"></div>
     <input class="search" id="q" type="search" placeholder="Buscar peça ou anotação…" aria-label="Buscar">
+    <button class="chip org-toggle" id="org" type="button" aria-pressed="false">Organizar a ordem</button>
   </div>
+  <p class="org-hint" id="org-hint" hidden>Arraste as atividades pela alça ⠿ ou use as setas. Dá para levar uma atividade de uma etapa para outra. Quando terminar, clique em “Concluir organização”.</p>
 
   <div id="list" style="display:flex;flex-direction:column;gap:30px"></div>
 </main>
@@ -279,13 +303,26 @@ a.fname{display:block;text-decoration:none}
       <div class="seg" id="p-status"></div>
     </div>
     <div class="sec">
-      <span class="eyebrow">Briefing</span>
+      <div class="lbl"><span class="eyebrow">Briefing</span><button class="link-btn" id="p-edit" type="button">Editar</button></div>
       <p class="brief" id="p-brief"></p>
+      <form class="edit-form" id="p-editform" hidden>
+        <label class="eyebrow" for="e-name">Nome</label>
+        <input id="e-name" type="text" autocomplete="off">
+        <label class="eyebrow" for="e-brief">Briefing</label>
+        <textarea id="e-brief" class="short"></textarea>
+        <label class="eyebrow" for="e-fase">Etapa de produção</label>
+        <select id="e-fase"></select>
+        <div class="form-end"><button class="btn-primary" type="submit">Salvar</button><button class="btn-plain" type="button" id="e-cancel">Cancelar</button></div>
+      </form>
       <div class="dep" id="p-dep" hidden></div>
     </div>
     <div class="sec">
       <div class="lbl"><span class="eyebrow">Etapas</span><span class="sub-count" id="p-subcount"></span></div>
       <ul class="checks" id="p-checks"></ul>
+      <form class="add-form" id="sub-form">
+        <input id="sub-new" type="text" placeholder="Nova etapa desta peça" autocomplete="off" aria-label="Nova etapa">
+        <button class="btn-plain" type="submit">Adicionar etapa</button>
+      </form>
     </div>
     <div class="sec">
       <div class="lbl"><label class="eyebrow" for="p-notes">Anotações</label><span class="saved" id="p-saved"></span></div>
@@ -363,7 +400,7 @@ const PIECES = [
   {id:"ap-01", fase:"apresentacao", nome:"Apresentação final", brief:"Apresentação que reúne o caderno e todas as peças produzidas.", subs:["Roteiro","Slides","Inserir as peças finalizadas","Ensaio"]},
 ];
 const CODES = {caderno:"CD",impressos:"IM",carrosseis:"CR",stories:"ST",mockups:"MK",apresentacao:"AP"};
-PIECES.forEach(p => { p.subs = p.subs.concat(FINAL); p.code = p.id.toUpperCase(); });
+PIECES.forEach((p, i) => { p.subs = p.subs.concat(FINAL); p.code = p.id.toUpperCase(); p.ordem = (i + 1) * 10; });
 const STATUS = [
   {id:"fazer", nome:"A fazer"},
   {id:"criando", nome:"Em criação"},
@@ -376,7 +413,7 @@ const statusName = id => (STATUS.find(s => s.id === id) || STATUS[0]).nome;
 const state = {};
 const blank = () => ({status:"fazer", notas:"", link:"", prazo:"", checks:{}, ocultas:{}, excluida:false, arquivos:[]});
 const get = id => ({...blank(), ...state[id]});
-let db = null, filterStatus = "todas", query = "", openId = null;
+let db = null, filterStatus = "todas", query = "", openId = null, organizing = false, drag = null;
 
 const $ = s => document.querySelector(s);
 const el = (tag, attrs = {}, ...kids) => {
@@ -388,29 +425,114 @@ const el = (tag, attrs = {}, ...kids) => {
   return n;
 };
 const fmtDate = d => { if (!d) return ""; const [y,m,dd] = d.split("-"); return `${dd}/${m}`; };
-/* Etapas excluídas ficam em `ocultas` (pelo índice original) para poderem voltar. */
-const visibleSubs = p => p.subs.map((t, i) => ({t, i})).filter(x => !get(p.id).ocultas[x.i]);
-const checkCount = p => visibleSubs(p).filter(x => get(p.id).checks[x.i]).length;
-const active = () => PIECES.filter(p => !get(p.id).excluida);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const phaseIndex = f => PHASES.findIndex(x => x.id === f);
+/* Peça = modelo do plano (ou criada no painel) + o que foi editado no painel. */
+function piece(id){
+  const base = PIECES.find(x => x.id === id) || {id, subs: [], brief: "", nome: "", code: ""};
+  const s = state[id] || {}, p = {...base};
+  ["nome", "brief", "fase", "ordem", "code"].forEach(k => { if (s[k] !== undefined) p[k] = s[k]; });
+  return p;
+}
+function allPieces(){
+  const ids = PIECES.map(p => p.id).concat(Object.keys(state).filter(id => state[id].nova && !PIECES.some(p => p.id === id)));
+  return ids.map(piece).filter(p => phaseIndex(p.fase) >= 0)
+    .sort((a, b) => phaseIndex(a.fase) - phaseIndex(b.fase) || a.ordem - b.ordem);
+}
+const active = () => allPieces().filter(p => !get(p.id).excluida);
+const inPhase = (fase, skip) => active().filter(p => p.fase === fase && p.id !== skip);
+/* Etapas: a lista própria da peça, quando já foi mexida; senão, a do plano
+   (com o índice como id, para manter o que já foi marcado e excluído). */
+function subsOf(p){
+  const s = get(p.id);
+  if (Array.isArray(s.lista)) return s.lista;
+  return p.subs.map((t, i) => ({id: String(i), t})).filter(x => !s.ocultas[x.id]);
+}
+const checkCount = p => subsOf(p).filter(x => get(p.id).checks[x.id]).length;
+function refocus(sel, alt){
+  const n = document.querySelector(sel);
+  if (n && !n.disabled) n.focus(); else { const m = document.querySelector(alt); if (m) m.focus(); }
+}
 
 let toastTimer = null, toastUndo = null;
 function toast(text, undo){
   $("#toast-text").textContent = text;
   toastUndo = undo;
+  $("#toast-undo").hidden = !undo;
   $("#toast").hidden = false;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { $("#toast").hidden = true; toastUndo = null; }, 7000);
 }
 function removePiece(id){
-  const p = PIECES.find(x => x.id === id);
+  const p = piece(id);
   closePanel();
   change(id, {excluida: true});
   toast(`“${p.nome}” foi excluída.`, () => change(id, {excluida: false}));
 }
-function removeSub(p, i){
-  const ocultas = {...get(p.id).ocultas, [i]: true};
-  change(p.id, {ocultas});
-  toast(`Etapa “${p.subs[i]}” excluída.`, () => { const o = {...get(p.id).ocultas}; delete o[i]; change(p.id, {ocultas: o}); });
+const setSubs = (p, lista) => change(p.id, {lista});
+function removeSub(p, sid){
+  const before = subsOf(p), item = before.find(x => x.id === sid);
+  setSubs(p, before.filter(x => x.id !== sid));
+  toast(`Etapa “${item.t}” excluída.`, () => setSubs(p, before));
+}
+function placeSub(p, sid, idx){
+  const list = subsOf(p), item = list.find(x => x.id === sid), rest = list.filter(x => x.id !== sid);
+  rest.splice(Math.max(0, Math.min(idx, rest.length)), 0, item);
+  setSubs(p, rest);
+}
+
+/* Ordem: cada peça guarda um número; mover = ficar entre os vizinhos do novo lugar. */
+function placePiece(id, fase, idx){
+  const list = inPhase(fase, id), before = list[idx - 1], after = list[idx];
+  const ordem = before && after ? (before.ordem + after.ordem) / 2 : before ? before.ordem + 10 : after ? after.ordem - 10 : 10;
+  change(id, {fase, ordem});
+}
+function movePiece(id, dir){
+  const p = piece(id), list = inPhase(p.fase), i = list.findIndex(x => x.id === id), fi = phaseIndex(p.fase);
+  if (dir < 0 && i > 0) placePiece(id, p.fase, i - 1);
+  else if (dir > 0 && i < list.length - 1) placePiece(id, p.fase, i + 1);
+  else if (dir < 0 && fi > 0) { const f = PHASES[fi - 1].id; placePiece(id, f, inPhase(f, id).length); }
+  else if (dir > 0 && fi < PHASES.length - 1) placePiece(id, PHASES[fi + 1].id, 0);
+}
+function addPiece(fase, nome){
+  const taken = new Set(allPieces().map(p => p.code));
+  let n = inPhase(fase).length + 1, code;
+  do { code = `${CODES[fase]}-${String(n++).padStart(2, "0")}`; } while (taken.has(code));
+  const id = "nv-" + uid(), last = inPhase(fase).at(-1);
+  state[id] = {...blank(), nova: true, nome, brief: "", fase, code, ordem: last ? last.ordem + 10 : 10,
+    lista: FINAL.map((t, i) => ({id: "f" + i, t}))};
+  render(); persist(id); openPanel(id);
+  toast(`“${nome}” foi adicionada.`, null);
+}
+
+/* Arrastar e soltar, usado nas atividades do quadro e nas etapas da ficha. */
+function clearMarks(){ document.querySelectorAll(".mark-before, .mark-end").forEach(n => n.classList.remove("mark-before", "mark-end")); }
+function dropIndex(box, y, sel){
+  const items = [...box.querySelectorAll(sel)].filter(n => !n.classList.contains("dragging"));
+  const k = items.findIndex(n => { const r = n.getBoundingClientRect(); return y < r.top + r.height / 2; });
+  return {items, k: k < 0 ? items.length : k};
+}
+function wireDrop(box, kind, sel, onDrop){
+  box.addEventListener("dragover", e => {
+    if (!drag || drag.kind !== kind) return;
+    e.preventDefault();
+    clearMarks();
+    const {items, k} = dropIndex(box, e.clientY, sel);
+    if (items[k]) items[k].classList.add("mark-before"); else box.classList.add("mark-end");
+  });
+  box.addEventListener("dragleave", e => { if (!box.contains(e.relatedTarget)) clearMarks(); });
+  box.addEventListener("drop", e => {
+    if (!drag || drag.kind !== kind) return;
+    e.preventDefault();
+    const {k} = dropIndex(box, e.clientY, sel), id = drag.id;
+    clearMarks(); drag = null;
+    onDrop(id, k);
+  });
+}
+function draggable(node, kind, id){
+  node.setAttribute("draggable", "true");
+  node.addEventListener("dragstart", e => { drag = {kind, id}; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", id); node.classList.add("dragging"); });
+  node.addEventListener("dragend", () => { drag = null; node.classList.remove("dragging"); clearMarks(); });
 }
 
 /* ---------- arquivos de apoio ----------
@@ -710,17 +832,19 @@ function render(){
   if (nxt) {
     const ph = PHASES.findIndex(f => f.id === nxt.fase) + 1;
     nb.replaceChildren(el("span", {class:"eyebrow", text:"Próxima na ordem de produção"}), el("strong", {text: nxt.nome}),
-      el("span", {class:"sub", text:`Etapa ${ph} · ${PHASES[ph-1].nome} · ${statusName(get(nxt.id).status)} · ${checkCount(nxt)}/${visibleSubs(nxt).length} etapas`}));
+      el("span", {class:"sub", text:`Etapa ${ph} · ${PHASES[ph-1].nome} · ${statusName(get(nxt.id).status)} · ${checkCount(nxt)}/${subsOf(nxt).length} etapas`}));
     nb.onclick = () => openPanel(nxt.id); nb.disabled = false;
   } else {
     nb.replaceChildren(el("span", {class:"eyebrow", text:"Ordem de produção"}), el("strong", {text:"Todas as peças estão prontas"}));
     nb.disabled = true;
   }
 
-  const list = $("#list");
+  const focused = document.activeElement && document.activeElement.id;
+  $("#status-filter").hidden = organizing; $("#q").hidden = organizing; $("#org-hint").hidden = !organizing;
+  const ob = $("#org"); ob.setAttribute("aria-pressed", String(organizing)); ob.textContent = organizing ? "Concluir organização" : "Organizar a ordem";
   const sections = PHASES.map((f, i) => {
     const all = live.filter(p => p.fase === f.id);
-    const shown = all.filter(matches);
+    const shown = organizing ? all : all.filter(matches);
     const ready = all.filter(p => get(p.id).status === "pronta").length;
     const mini = el("div", {class:"mini"}, (() => { const s = el("span"); s.style.width = (all.length ? ready / all.length * 100 : 0) + "%"; return s; })());
     const head = el("div", {class:"phase-head"},
@@ -728,25 +852,13 @@ function render(){
       el("div", {class:"t"}, el("h2", {text:f.nome})),
       mini, el("span", {class:"c", text:`${ready}/${all.length} prontas`}));
     const rows = el("div", {class:"rows"});
-    if (!all.length) rows.append(el("div", {class:"empty", text:"Todas as peças desta etapa foram excluídas."}));
+    if (!all.length) rows.append(el("div", {class:"empty", text: organizing ? "Arraste uma atividade para cá." : "Nenhuma atividade nesta etapa."}));
     else if (!shown.length) rows.append(el("div", {class:"empty", text:"Nenhuma peça desta etapa com esse filtro."}));
-    shown.forEach(p => {
-      const s = get(p.id);
-      const meta = el("span", {class:"meta"}, el("span", {text:`${checkCount(p)}/${visibleSubs(p).length} etapas`}));
-      if (s.prazo) meta.append(el("span", {text:"Prazo " + fmtDate(s.prazo)}));
-      if (s.arquivos.length) meta.append(el("span", {text: s.arquivos.length === 1 ? "1 arquivo" : `${s.arquivos.length} arquivos`}));
-      if (p.dep && s.status !== "pronta") meta.append(el("span", {class:"flag", text:p.dep.split(".")[0]}));
-      if (s.notas.trim()) meta.append(el("span", {class:"note", text:"“" + s.notas.trim().split("\n")[0] + "”"}));
-      const r = el("button", {class:"row", type:"button", "data-status": s.status},
-        el("span", {class:"mono code", text:p.code}),
-        el("span", {}, el("span", {class:"name", text:p.nome}), meta),
-        el("span", {class:"pill", "data-s": s.status, text: statusName(s.status)}));
-      r.onclick = () => openPanel(p.id);
-      rows.append(r);
-    });
-    return el("section", {class:"phase"}, head, rows);
+    shown.forEach(p => rows.append(organizing ? orgRow(p, live) : pieceRow(p)));
+    if (organizing) wireDrop(rows, "piece", ".row", (id, k) => placePiece(id, f.id, k));
+    return el("section", {class:"phase"}, head, rows, addPieceControl(f.id));
   });
-  const gone = PIECES.filter(p => get(p.id).excluida);
+  const gone = allPieces().filter(p => get(p.id).excluida);
   if (gone.length) {
     const box = el("details", {class:"trash"}, el("summary", {text:`Peças excluídas (${gone.length})`}));
     gone.forEach(p => {
@@ -756,8 +868,66 @@ function render(){
     });
     sections.push(box);
   }
-  list.replaceChildren(...sections);
+  $("#list").replaceChildren(...sections);
+  if (focused && focused.startsWith("new-")) { const n = document.getElementById(focused); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } }
 }
+function pieceRow(p){
+  const s = get(p.id);
+  const meta = el("span", {class:"meta"}, el("span", {text:`${checkCount(p)}/${subsOf(p).length} etapas`}));
+  if (s.prazo) meta.append(el("span", {text:"Prazo " + fmtDate(s.prazo)}));
+  if (s.arquivos.length) meta.append(el("span", {text: s.arquivos.length === 1 ? "1 arquivo" : `${s.arquivos.length} arquivos`}));
+  if (p.dep && s.status !== "pronta") meta.append(el("span", {class:"flag", text:p.dep.split(".")[0]}));
+  if (s.notas.trim()) meta.append(el("span", {class:"note", text:"“" + s.notas.trim().split("\n")[0] + "”"}));
+  const r = el("button", {class:"row", type:"button", "data-status": s.status},
+    el("span", {class:"mono code", text:p.code}),
+    el("span", {}, el("span", {class:"name", text:p.nome}), meta),
+    el("span", {class:"pill", "data-s": s.status, text: statusName(s.status)}));
+  r.onclick = () => openPanel(p.id);
+  return r;
+}
+function orgRow(p, live){
+  const k = live.findIndex(x => x.id === p.id);
+  const mk = (dir, label, glyph) => {
+    const b = el("button", {class:"mv", type:"button", title: label, "aria-label":`${label}: ${p.nome}`, "data-move":`${p.id}:${dir}`, text: glyph});
+    b.disabled = dir < 0 ? k === 0 : k === live.length - 1;
+    b.onclick = () => { movePiece(p.id, dir); refocus(`[data-move="${p.id}:${dir}"]`, `[data-move="${p.id}:${-dir}"]`); };
+    return b;
+  };
+  const r = el("div", {class:"row org", "data-status": get(p.id).status},
+    el("span", {class:"handle", "aria-hidden":"true", text:"⠿"}),
+    el("span", {class:"mono code", text:p.code}),
+    el("span", {}, el("span", {class:"name", text:p.nome})),
+    el("span", {class:"movebtns"}, mk(-1, "Subir", "↑"), mk(1, "Descer", "↓")));
+  draggable(r, "piece", p.id);
+  return r;
+}
+let addDraft = null;
+function addPieceControl(fase){
+  const wrap = el("div", {class:"add-wrap"});
+  const idle = () => {
+    const btn = el("button", {class:"add-row", type:"button", text:"+ Nova atividade nesta etapa"});
+    btn.onclick = () => { addDraft = {fase, value: ""}; wrap.replaceChildren(form()); $("#new-" + fase).focus(); };
+    return btn;
+  };
+  const form = () => {
+    const inp = el("input", {type:"text", id:"new-" + fase, placeholder:"Nome da atividade", autocomplete:"off", "aria-label":"Nome da nova atividade"});
+    inp.value = addDraft.value;
+    inp.oninput = () => { addDraft.value = inp.value; };
+    const no = el("button", {class:"btn-plain", type:"button", text:"Cancelar"});
+    no.onclick = () => { addDraft = null; wrap.replaceChildren(idle()); };
+    const f = el("form", {class:"add-form"}, inp, el("button", {class:"btn-primary", type:"submit", text:"Adicionar"}), no);
+    f.onsubmit = e => {
+      e.preventDefault();
+      const nome = inp.value.trim();
+      if (!nome) { inp.focus(); return; }
+      addDraft = null; addPiece(fase, nome);
+    };
+    return f;
+  };
+  wrap.append(addDraft && addDraft.fase === fase ? form() : idle());
+  return wrap;
+}
+$("#org").onclick = () => { organizing = !organizing; render(); };
 
 /* ---------- painel ---------- */
 let lastFocus = null, notesTimer = null;
@@ -775,41 +945,44 @@ function closePanel(){
   if (lastFocus) lastFocus.focus();
 }
 function fillPanel(full){
-  const p = PIECES.find(x => x.id === openId); if (!p) return;
+  const p = piece(openId); if (!p.fase) return;
   const s = get(p.id);
   const fi = PHASES.findIndex(f => f.id === p.fase);
   $("#p-code").textContent = p.code;
   $("#p-name").textContent = p.nome;
   $("#p-phase").textContent = `Etapa ${fi + 1} de ${PHASES.length} · ${PHASES[fi].nome}`;
-  $("#p-brief").textContent = p.brief;
+  $("#p-brief").textContent = p.brief || "Sem briefing ainda. Clique em “Editar” para escrever.";
+  if (full) { $("#p-editform").hidden = true; $("#p-brief").hidden = false; }
   $("#p-dep").hidden = !p.dep; $("#p-dep").textContent = p.dep || "";
   $("#p-status").replaceChildren(...STATUS.map(st => {
     const b = el("button", {type:"button", "aria-pressed": String(s.status === st.id), text: st.nome});
     b.onclick = () => change(p.id, {status: st.id});
     return b;
   }));
-  const vis = visibleSubs(p);
-  $("#p-subcount").textContent = `${checkCount(p)} de ${vis.length}`;
-  const hiddenCount = p.subs.length - vis.length;
-  const items = vis.map(({t, i}) => {
-    const inp = el("input", {type:"checkbox", id:`chk-${p.id}-${i}`});
-    inp.checked = !!s.checks[i];
+  const subs = subsOf(p);
+  $("#p-subcount").textContent = `${checkCount(p)} de ${subs.length}`;
+  $("#p-checks").replaceChildren(...subs.map((x, k) => {
+    const inp = el("input", {type:"checkbox", id:`chk-${p.id}-${x.id}`});
+    inp.checked = !!s.checks[x.id];
     inp.onchange = () => {
-      const checks = {...get(p.id).checks}; if (inp.checked) checks[i] = true; else delete checks[i];
+      const checks = {...get(p.id).checks}; if (inp.checked) checks[x.id] = true; else delete checks[x.id];
       const patch = {checks};
       if (inp.checked && get(p.id).status === "fazer") patch.status = "criando";
       change(p.id, patch);
     };
-    const del = el("button", {class:"del-sub", type:"button", "aria-label":`Excluir a etapa ${t}`, title:"Excluir etapa", text:"×"});
-    del.onclick = () => removeSub(p, i);
-    return el("li", {}, el("label", {for:`chk-${p.id}-${i}`}, inp, el("span", {text:t})), del);
-  });
-  if (hiddenCount) {
-    const r = el("button", {class:"link-btn", type:"button", text:`Restaurar etapas excluídas (${hiddenCount})`});
-    r.onclick = () => change(p.id, {ocultas: {}});
-    items.push(el("li", {}, r));
-  }
-  $("#p-checks").replaceChildren(...items);
+    const mv = (dir, label, glyph) => {
+      const b = el("button", {class:"sub-mv", type:"button", title: label, "aria-label":`${label} a etapa ${x.t}`, "data-smove":`${x.id}:${dir}`, text: glyph});
+      b.disabled = dir < 0 ? k === 0 : k === subs.length - 1;
+      b.onclick = () => { placeSub(p, x.id, k + dir); refocus(`[data-smove="${x.id}:${dir}"]`, `[data-smove="${x.id}:${-dir}"]`); };
+      return b;
+    };
+    const del = el("button", {class:"del-sub", type:"button", "aria-label":`Excluir a etapa ${x.t}`, title:"Excluir etapa", text:"×"});
+    del.onclick = () => removeSub(p, x.id);
+    const li = el("li", {"data-sid": x.id}, el("span", {class:"handle", "aria-hidden":"true", text:"⠿"}),
+      el("label", {for:`chk-${p.id}-${x.id}`}, inp, el("span", {text:x.t})), mv(-1, "Subir", "↑"), mv(1, "Descer", "↓"), del);
+    draggable(li, "sub", x.id);
+    return li;
+  }));
   if (full) { dangerIdle(p); $("#p-drop").replaceChildren(pieceDrop(p.id)); }
   $("#p-files").replaceChildren(fileList(s.arquivos, f => change(p.id, {arquivos: get(p.id).arquivos.filter(x => x.id !== f.id)})));
   const notes = $("#p-notes");
@@ -832,6 +1005,31 @@ function dangerIdle(p){
   };
   $("#p-danger").replaceChildren(b);
 }
+wireDrop($("#p-checks"), "sub", "li[data-sid]", (sid, k) => openId && placeSub(piece(openId), sid, k));
+$("#sub-form").addEventListener("submit", e => {
+  e.preventDefault();
+  const t = $("#sub-new").value.trim();
+  if (!t || !openId) { $("#sub-new").focus(); return; }
+  const p = piece(openId);
+  setSubs(p, [...subsOf(p), {id: "c" + uid(), t}]);
+  $("#sub-new").value = ""; $("#sub-new").focus();
+});
+$("#e-fase").replaceChildren(...PHASES.map((f, i) => el("option", {value: f.id, text: `${i + 1}. ${f.nome}`})));
+$("#p-edit").onclick = () => {
+  const p = piece(openId);
+  $("#e-name").value = p.nome; $("#e-brief").value = p.brief; $("#e-fase").value = p.fase;
+  $("#p-brief").hidden = true; $("#p-editform").hidden = false; $("#e-name").focus();
+};
+$("#e-cancel").onclick = () => { $("#p-editform").hidden = true; $("#p-brief").hidden = false; };
+$("#p-editform").addEventListener("submit", e => {
+  e.preventDefault();
+  const p = piece(openId), nome = $("#e-name").value.trim();
+  if (!nome) { $("#e-name").focus(); return; }
+  const patch = {nome, brief: $("#e-brief").value.trim()}, fase = $("#e-fase").value;
+  if (fase !== p.fase) { const last = inPhase(fase, p.id).at(-1); patch.fase = fase; patch.ordem = last ? last.ordem + 10 : 10; }
+  $("#p-editform").hidden = true; $("#p-brief").hidden = false;
+  change(p.id, patch);
+});
 $("#toast-undo").onclick = () => { if (toastUndo) toastUndo(); $("#toast").hidden = true; toastUndo = null; };
 function flushNotes(){
   if (!notesTimer || !openId) return;
@@ -879,7 +1077,7 @@ setSync("0", "Conectando ao salvamento…");
     renderApoio();
   }, () => {});
   db.collection("pecas").onSnapshot(snap => {
-    snap.docs.forEach(d => { if (d.exists) { const v = d.data(); state[d.id] = {...blank(), ...v, checks: {...(v.checks || {})}, ocultas: {...(v.ocultas || {})}, arquivos: [...(v.arquivos || [])]}; } });
+    snap.docs.forEach(d => { if (d.exists) { const v = d.data(); state[d.id] = {...blank(), ...v, checks: {...(v.checks || {})}, ocultas: {...(v.ocultas || {})}, arquivos: [...(v.arquivos || [])]}; if (Array.isArray(v.lista)) state[d.id].lista = v.lista.map(x => ({...x})); } });
     setSync("1", "Salvo na nuvem · compartilhado com quem tem acesso");
     render();
     if (openId) fillPanel(false);
