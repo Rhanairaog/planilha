@@ -47,6 +47,7 @@
   color-scheme:dark;
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
 .wrap{max-width:1080px;margin:0 auto;padding-block:28px 64px;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));display:flex;flex-direction:column;gap:28px}
 h1,h2,h3{font-family:var(--f-display);font-weight:600;text-wrap:balance;margin:0;letter-spacing:-.01em}
@@ -155,7 +156,17 @@ textarea{min-height:170px;resize:vertical;line-height:1.55}
 .trash-row{display:flex;align-items:center;gap:12px;justify-content:space-between;padding:6px 0;border-top:1px solid var(--line)}
 .trash-row span{min-width:0;color:var(--muted)}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:30;background:var(--ink);color:var(--bg);border-radius:12px;padding:10px 12px 10px 16px;display:flex;gap:14px;align-items:center;box-shadow:var(--shadow);font-size:14px;max-width:calc(100% - 32px)}
-.apoio{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:18px}
+.apoio-box{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:16px}
+.apoio-top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.tabs{display:flex;gap:4px;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:4px}
+.tabs button{border:0;background:transparent;border-radius:7px;padding:7px 16px;font-size:13.5px;font-weight:600;color:var(--muted)}
+.tabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.tabs span{font-weight:500;font-variant-numeric:tabular-nums}
+.apoio{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:18px}
+.link-form input{width:100%;font:inherit;font-size:14.5px;color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.form-end{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.btn-primary{border:0;background:var(--accent);color:var(--on-accent);border-radius:8px;padding:9px 16px;font-size:13.5px;font-weight:600}
+a.fname{display:block;text-decoration:none}
 .apoio-head{display:flex;flex-direction:column;gap:6px}
 .apoio-head p{margin:0;color:var(--ink-2);font-size:14px}
 .dropwrap{display:flex;flex-direction:column;gap:6px;position:relative}
@@ -217,13 +228,31 @@ textarea{min-height:170px;resize:vertical;line-height:1.55}
     <div class="legend" id="legend"></div>
   </section>
 
-  <section class="apoio" aria-labelledby="apoio-t">
-    <div class="apoio-head">
-      <h2 id="apoio-t">Arquivos de apoio</h2>
-      <p>Referências que valem para a campanha toda. Arquivos de uma peça específica ficam dentro da ficha dela.</p>
-      <div id="apoio-drop"></div>
+  <section class="apoio-box" aria-labelledby="apoio-t">
+    <div class="apoio-top">
+      <h2 id="apoio-t">Material de apoio</h2>
+      <div class="tabs" role="tablist" aria-label="Tipo de material" id="tabs">
+        <button role="tab" type="button" id="tab-arq" aria-controls="pane-arq" aria-selected="true">Arquivos <span id="n-arq"></span></button>
+        <button role="tab" type="button" id="tab-links" aria-controls="pane-links" aria-selected="false" tabindex="-1">Links <span id="n-links"></span></button>
+      </div>
     </div>
-    <div id="apoio-files"><p class="empty">Carregando arquivos…</p></div>
+    <div class="apoio" id="pane-arq" role="tabpanel" aria-labelledby="tab-arq">
+      <div class="apoio-head">
+        <p>Referências que valem para a campanha toda. Arquivos de uma peça específica ficam dentro da ficha dela.</p>
+        <div id="apoio-drop"></div>
+      </div>
+      <div id="apoio-files"><p class="empty">Carregando arquivos…</p></div>
+    </div>
+    <div class="apoio" id="pane-links" role="tabpanel" aria-labelledby="tab-links" hidden>
+      <form class="apoio-head link-form" id="link-form" novalidate>
+        <p>Sites, pastas, vídeos e referências que ajudam a criar as peças.</p>
+        <input id="l-url" type="text" inputmode="url" autocomplete="off" placeholder="Cole o link aqui" aria-label="Endereço do link">
+        <input id="l-title" type="text" autocomplete="off" placeholder="Nome (ex.: Referências de fotografia)" aria-label="Nome do link">
+        <input id="l-note" type="text" autocomplete="off" placeholder="Para que serve (opcional)" aria-label="Para que serve">
+        <div class="form-end"><button class="btn-primary" type="submit">Adicionar link</button><span class="saved" id="l-msg" aria-live="polite"></span></div>
+      </form>
+      <div id="links-list"><p class="empty">Carregando links…</p></div>
+    </div>
   </section>
 
   <div class="filters" role="toolbar" aria-label="Filtros">
@@ -547,7 +576,68 @@ function saveGeral(){
   if (!db) return;
   geralChain = geralChain.then(() => db.doc("apoio/geral").set({arquivos: geral.arquivos})).catch(() => {});
 }
+/* ---------- links de apoio ---------- */
+let links = null, linksChain = Promise.resolve();
+const LINKS_KEY = "checklist-drops-links";
+function saveLinks(){
+  if (!db) { try { localStorage.setItem(LINKS_KEY, JSON.stringify(links)); } catch {} return; }
+  linksChain = linksChain.then(() => db.doc("apoio/links").set({links}))
+    .catch(() => { $("#l-msg").textContent = "Não foi possível salvar. Você pode estar só com acesso de leitura."; });
+}
+function renderLinks(){
+  if (!links) return;
+  $("#n-links").textContent = links.length ? `(${links.length})` : "";
+  if (!links.length) { $("#links-list").replaceChildren(el("p", {class:"empty", text:"Nenhum link ainda. Cole o primeiro no campo ao lado."})); return; }
+  const ul = el("ul", {class:"files"});
+  links.forEach(l => {
+    let host = ""; try { host = new URL(l.url).hostname.replace(/^www\./, ""); } catch {}
+    const del = el("button", {class:"del-sub", type:"button", title:"Excluir link", "aria-label":`Excluir ${l.titulo}`, text:"×"});
+    del.onclick = () => {
+      const idx = links.indexOf(l);
+      links = links.filter(x => x !== l); renderLinks(); saveLinks();
+      toast(`Link “${l.titulo}” excluído.`, () => { links.splice(Math.min(idx, links.length), 0, l); renderLinks(); saveLinks(); });
+    };
+    ul.append(el("li", {},
+      el("span", {class:"ftype", text:(host[0] || "?").toUpperCase()}),
+      el("div", {class:"finfo"},
+        el("a", {class:"fname", href: l.url, target:"_blank", rel:"noopener", text: l.titulo}),
+        el("span", {class:"sub-count", text: host + (l.nota ? " · " + l.nota : "")})),
+      del));
+  });
+  $("#links-list").replaceChildren(ul);
+}
+$("#link-form").addEventListener("submit", e => {
+  e.preventDefault();
+  if (!links) return;
+  let raw = $("#l-url").value.trim();
+  if (!raw) { $("#l-msg").textContent = "Cole o endereço do link primeiro."; $("#l-url").focus(); return; }
+  if (!/^https?:\/\//i.test(raw)) raw = "https://" + raw;
+  let u; try { u = new URL(raw); } catch { u = null; }
+  if (!u || !u.hostname.includes(".")) { $("#l-msg").textContent = "Esse endereço não parece um link válido."; $("#l-url").focus(); return; }
+  const titulo = $("#l-title").value.trim() || u.hostname.replace(/^www\./, "");
+  links = [{id: Date.now().toString(36), titulo, url: u.href, nota: $("#l-note").value.trim(), em: new Date().toISOString()}, ...links];
+  ["#l-url", "#l-title", "#l-note"].forEach(s => $(s).value = "");
+  $("#l-msg").textContent = "Link adicionado.";
+  renderLinks(); saveLinks();
+});
+function selectTab(which){
+  const arq = which === "arq";
+  $("#tab-arq").setAttribute("aria-selected", String(arq)); $("#tab-links").setAttribute("aria-selected", String(!arq));
+  $("#tab-arq").tabIndex = arq ? 0 : -1; $("#tab-links").tabIndex = arq ? -1 : 0;
+  $("#pane-arq").hidden = !arq; $("#pane-links").hidden = arq;
+  try { localStorage.setItem(LINKS_KEY + "-aba", which); } catch {}
+}
+$("#tab-arq").onclick = () => selectTab("arq");
+$("#tab-links").onclick = () => selectTab("links");
+$("#tabs").addEventListener("keydown", e => {
+  if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+  const next = $("#tab-arq").getAttribute("aria-selected") === "true" ? "links" : "arq";
+  selectTab(next); $(next === "arq" ? "#tab-arq" : "#tab-links").focus();
+});
+try { selectTab(localStorage.getItem(LINKS_KEY + "-aba") === "links" ? "links" : "arq"); } catch { selectTab("arq"); }
+
 function renderApoio(){
+  $("#n-arq").textContent = geral.arquivos.length ? `(${geral.arquivos.length})` : "";
   $("#apoio-files").replaceChildren(fileList(geral.arquivos, f => {
     geral.arquivos = geral.arquivos.filter(x => x.id !== f.id); renderApoio(); saveGeral();
   }));
@@ -775,7 +865,15 @@ setSync("0", "Conectando ao salvamento…");
   $("#apoio-drop").replaceChildren(dropZone("up-geral", list => { geral.arquivos = [...geral.arquivos, ...list]; renderApoio(); saveGeral(); }));
   if (openId) $("#p-drop").replaceChildren(pieceDrop(openId));
   renderApoio();
-  if (!db) { setSync("warn", "Salvando só neste navegador"); return; }
+  if (!db) {
+    try { links = JSON.parse(localStorage.getItem(LINKS_KEY) || "[]"); } catch { links = []; }
+    renderLinks();
+    setSync("warn", "Salvando só neste navegador"); return;
+  }
+  db.doc("apoio/links").onSnapshot(d => {
+    links = d.exists ? [...(d.data().links || [])] : [];
+    renderLinks();
+  }, () => {});
   db.doc("apoio/geral").onSnapshot(d => {
     geral = {arquivos: d.exists ? [...(d.data().arquivos || [])] : []};
     renderApoio();
