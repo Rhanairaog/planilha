@@ -169,8 +169,17 @@ textarea{min-height:170px;resize:vertical;line-height:1.55}
 .files li{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:6px 6px 6px 8px;border-radius:10px;border:1px solid var(--line);background:var(--surface)}
 .files img,.ftype{width:44px;height:44px;border-radius:6px;object-fit:cover;flex:none;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-family:var(--f-mono);font-size:10px;font-weight:600}
 .finfo{flex:1;min-width:0;display:flex;flex-direction:column}
-.fname{color:var(--ink);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:none}
-.fname:hover{text-decoration:underline}
+.fname{border:0;background:transparent;padding:0;text-align:left;color:var(--ink);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fname:hover{text-decoration:underline;color:var(--accent)}
+.viewer{position:fixed;inset:0;z-index:40;background:var(--bg);display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.viewer-head{display:flex;gap:10px;align-items:center;padding-block:12px;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));border-bottom:1px solid var(--line);background:var(--surface)}
+.viewer-head strong{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.viewer-body{flex:1;overflow:auto;padding-block:16px;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));display:flex;flex-direction:column;align-items:center;gap:6px}
+.viewer-body > *{max-width:900px;width:100%}
+.viewer-body img,.viewer-body video{width:auto;max-width:100%;max-height:82vh;object-fit:contain}
+.viewer-body pre{white-space:pre-wrap;word-break:break-word;font-family:var(--f-mono);font-size:13px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;margin:0}
+.pdf-page{display:block;height:auto;box-shadow:var(--shadow);border-radius:2px}
+.pdf-num{text-align:center;margin-bottom:12px}
 .fconfirm{flex-basis:100%;display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;color:var(--ink-2);padding:4px 0 2px}
 .drop-status{min-height:18px}
 @media (max-width:760px){.apoio{grid-template-columns:1fr}}
@@ -271,6 +280,15 @@ textarea{min-height:170px;resize:vertical;line-height:1.55}
     <div class="danger-zone" id="p-danger"></div>
   </div>
 </aside>
+<div class="viewer" id="viewer" hidden role="dialog" aria-modal="true" aria-labelledby="v-name">
+  <div class="viewer-head">
+    <strong id="v-name"></strong>
+    <span class="saved" id="v-msg"></span>
+    <button class="btn-plain" id="v-down" type="button" hidden>Baixar</button>
+    <button class="x" id="v-close" type="button" aria-label="Fechar">×</button>
+  </div>
+  <div class="viewer-body" id="v-body"></div>
+</div>
 <div class="toast" id="toast" hidden role="status"><span id="toast-text"></span><button type="button" id="toast-undo">Desfazer</button></div>
 
 <script>
@@ -428,7 +446,7 @@ function fileList(files, onRemove){
       thumb.onerror = () => thumb.replaceWith(el("span", {class:"ftype", text:"IMG"}));
     } else thumb = el("span", {class:"ftype", text: typeLabel(f)});
     const li = el("li", {}, thumb, el("div", {class:"finfo"},
-      el("a", {class:"fname", href: url, target:"_blank", rel:"noopener", text: f.nome}),
+      (() => { const b = el("button", {class:"fname", type:"button", title:"Abrir", text: f.nome}); b.onclick = () => openViewer(f); return b; })(),
       el("span", {class:"sub-count", text:`${fmtSize(f.tamanho)} · enviado em ${new Date(f.em).toLocaleDateString("pt-BR")}`})));
     if (assets) {
       const b = el("button", {class:"del-sub", type:"button", title:"Excluir arquivo", "aria-label":`Excluir ${f.nome}`, text:"×"});
@@ -447,6 +465,84 @@ function fileList(files, onRemove){
   });
   return ul;
 }
+/* Visualizador: os arquivos abrem dentro do painel, porque a página não pode abrir abas nem baixar sozinha. */
+let downloads = null, viewing = null, viewToken = 0, pdfjsReady = null;
+const PDFJS = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/";
+function loadPdfJs(){
+  if (!pdfjsReady) pdfjsReady = new Promise((res, rej) => {
+    const s = document.createElement("script");
+    s.src = PDFJS + "pdf.min.js";
+    s.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS + "pdf.worker.min.js"; res(window.pdfjsLib); };
+    s.onerror = () => { pdfjsReady = null; rej(new Error("pdfjs")); };
+    document.head.append(s);
+  });
+  return pdfjsReady;
+}
+async function fetchAsset(f){
+  const r = await fetch("/_blob/" + f.id);
+  if (!r.ok) throw new Error("http " + r.status);
+  return r;
+}
+async function renderPdf(box, f, token){
+  box.replaceChildren(el("p", {class:"empty", text:"Abrindo o PDF…"}));
+  const [lib, buf] = await Promise.all([loadPdfJs(), fetchAsset(f).then(r => r.arrayBuffer())]);
+  const pdf = await lib.getDocument({data: new Uint8Array(buf), isEvalSupported: false}).promise;
+  if (token !== viewToken) return;
+  box.replaceChildren();
+  const width = Math.min(box.clientWidth - 32, 900) || 600;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  for (let n = 1; n <= pdf.numPages; n++) {
+    if (token !== viewToken) return;
+    const page = await pdf.getPage(n);
+    const vp = page.getViewport({scale: width / page.getViewport({scale: 1}).width * dpr});
+    const c = el("canvas", {class:"pdf-page", "aria-label":`Página ${n}`});
+    c.width = Math.floor(vp.width); c.height = Math.floor(vp.height);
+    box.append(c, el("span", {class:"sub-count pdf-num", text:`Página ${n} de ${pdf.numPages}`}));
+    await page.render({canvasContext: c.getContext("2d"), viewport: vp}).promise;
+  }
+}
+async function openViewer(f){
+  viewing = f;
+  const token = ++viewToken;
+  $("#v-name").textContent = f.nome;
+  $("#v-msg").textContent = "";
+  $("#v-down").hidden = !downloads;
+  $("#viewer").hidden = false;
+  $("#v-close").focus();
+  const box = $("#v-body"), url = "/_blob/" + f.id;
+  try {
+    if (f.tipo.startsWith("image/")) box.replaceChildren(el("img", {src: url, alt: f.nome}));
+    else if (f.tipo.startsWith("video/")) box.replaceChildren(el("video", {src: url, controls: "", playsinline: ""}));
+    else if (f.tipo === "application/pdf") await renderPdf(box, f, token);
+    else {
+      box.replaceChildren(el("p", {class:"empty", text:"Abrindo…"}));
+      const text = await (await fetchAsset(f)).text();
+      if (token === viewToken) box.replaceChildren(el("pre", {text}));
+    }
+  } catch {
+    if (token === viewToken) box.replaceChildren(el("p", {class:"empty", text: downloads
+      ? "Não foi possível mostrar este arquivo aqui. Use “Baixar” para abri-lo no seu computador."
+      : "Não foi possível mostrar este arquivo. Recarregue a página e tente de novo."}));
+  }
+}
+function closeViewer(){
+  viewToken++; viewing = null;
+  $("#viewer").hidden = true;
+  $("#v-body").replaceChildren();
+}
+$("#v-close").onclick = closeViewer;
+$("#v-down").onclick = async () => {
+  const f = viewing; if (!f || !downloads) return;
+  $("#v-msg").textContent = "Preparando…";
+  try {
+    const blob = await (await fetchAsset(f)).blob();
+    await downloads.save({filename: f.nome, data: blob});
+    $("#v-msg").textContent = "";
+  } catch (e) {
+    const code = e && e.code;
+    $("#v-msg").textContent = code === "declined" ? "" : code === "rejected_extension" ? "Este tipo de arquivo não pode ser baixado aqui." : "Não foi possível baixar. Tente de novo.";
+  }
+};
 function saveGeral(){
   if (!db) return;
   geralChain = geralChain.then(() => db.doc("apoio/geral").set({arquivos: geral.arquivos})).catch(() => {});
@@ -662,7 +758,10 @@ $("#p-due").addEventListener("change", e => openId && change(openId, {prazo: e.t
 $("#p-link").addEventListener("change", e => openId && change(openId, {link: e.target.value.trim()}));
 $("#close").onclick = closePanel;
 $("#scrim").onclick = closePanel;
-document.addEventListener("keydown", e => { if (e.key === "Escape" && openId) closePanel(); });
+document.addEventListener("keydown", e => {
+  if (e.key !== "Escape") return;
+  if (!$("#viewer").hidden) closeViewer(); else if (openId) closePanel();
+});
 $("#q").addEventListener("input", e => { query = e.target.value.trim().toLowerCase(); render(); });
 
 /* ---------- início ---------- */
@@ -671,7 +770,7 @@ render();
 setSync("0", "Conectando ao salvamento…");
 (async () => {
   const use = name => (window.claude && window.claude.use ? window.claude.use(name) : Promise.resolve(null)).catch(() => null);
-  [db, assets] = await Promise.all([use("db"), use("assets")]);
+  [db, assets, downloads] = await Promise.all([use("db"), use("assets"), use("downloads")]);
   if (!db) assets = null;
   $("#apoio-drop").replaceChildren(dropZone("up-geral", list => { geral.arquivos = [...geral.arquivos, ...list]; renderApoio(); saveGeral(); }));
   if (openId) $("#p-drop").replaceChildren(pieceDrop(openId));
