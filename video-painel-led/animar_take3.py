@@ -45,7 +45,17 @@ bd = Image.open(BADGE_F).convert('RGBA'); bd = bd.crop(bd.getbbox())
 bs = BADGE_W * K / bd.width
 bd = bd.resize((round(bd.width * bs), round(bd.height * bs)), Image.LANCZOS)
 BADGE = np.asarray(bd).astype(np.float32) / 255
-BW, BH = bd.size
+# sombra projetada: dá volume a selos chapados (sem relevo) sobre o fundo escuro
+pad, off = int(40 * K), (int(10 * K), int(16 * K))
+sh = np.zeros((BADGE.shape[0] + 2 * pad, BADGE.shape[1] + 2 * pad, 4), np.float32)
+sh[pad + off[1]:pad + off[1] + BADGE.shape[0], pad + off[0]:pad + off[0] + BADGE.shape[1], 3] = BADGE[..., 3]
+sh[..., 3] = ndi.gaussian_filter(sh[..., 3], 14 * K) * .75
+core = sh[pad:pad + BADGE.shape[0], pad:pad + BADGE.shape[1]]
+a = BADGE[..., 3:4]
+core[..., :3] = BADGE[..., :3] * a / np.maximum(a + core[..., 3:4] * (1 - a), 1e-4)
+core[..., 3:4] = a + core[..., 3:4] * (1 - a)
+BADGE = sh
+BH, BW = BADGE.shape[:2]
 BCX, BCY = BADGE_C[0] * K, BADGE_C[1] * K
 bface = (BADGE[..., 3] > .9).astype(np.float32)
 
