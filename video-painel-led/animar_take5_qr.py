@@ -1,5 +1,5 @@
 """Take 5 (versão QR Code) — fitas rolando, QR Code "escaneado" na tela, chamada e endereço digitado.
-Uso: python3 take5_qr.py fundo.jpg|preto fitas.png bloco_qr.png Anton.ttf saida.mp4 [duracao_s] [largura altura]
+Uso: python3 take5_qr.py fundo.jpg|preto fitas.png bloco_qr.png[,outra_camada.png]  Anton.ttf saida.mp4 [duracao_s] [largura altura]
 O QR Code nunca é distorcido depois de pronto: fica parado, nítido e com margem branca para a leitura."""
 import numpy as np, subprocess, sys, math
 from PIL import Image, ImageDraw, ImageFont
@@ -9,7 +9,8 @@ BG_F, TAPE_F, BLOCK_F, FONT_F, OUT = sys.argv[1:6]
 DUR = float(sys.argv[6]) if len(sys.argv) > 6 else 6.0
 W, H = (int(sys.argv[7]), int(sys.argv[8])) if len(sys.argv) > 8 else (1920, 1080)
 FPS = 30
-K = W / 1920
+K = min(W, H) / 1080                  # escala pelo lado menor: vale para horizontal e vertical
+VERT = H > W
 yy, xx = np.mgrid[0:H, 0:W]
 
 def fit(im):
@@ -89,33 +90,43 @@ def tape_layer(i, scroll, slide):
     return rot, (int(cx - rot.size[0] / 2), int(cy - rot.size[1] / 2))
 
 # ---------- bloco: QR Code | linha 1 | linha 2 | endereço ----------
-blk = np.asarray(fit(Image.open(BLOCK_F))).astype(np.float32) / 255
+# o bloco pode vir numa camada só ou em várias (separadas por vírgula), todas na mesma tela
+blk_im = Image.new('RGBA', (W, H))
+for f_ in BLOCK_F.split(','): blk_im.alpha_composite(fit(Image.open(f_)))
+blk = np.asarray(blk_im).astype(np.float32) / 255
 ba = blk[..., 3] > .1
 mx_, mn_ = blk[..., :3].max(-1), blk[..., :3].min(-1)
 sat = (mx_ - mn_) / (mx_ + 1e-3)
-# o QR é o maior componente "preto e branco" à esquerda
-qcols = np.where((ba & (sat < .3)).sum(0) > 40 * K)[0]
-QX0 = qcols.min(); QX1 = qcols[np.where(np.diff(qcols) > 5)[0][0]] + 1 if (np.diff(qcols) > 5).any() else qcols.max() + 1
-qrows = np.where(ba[:, QX0:QX1].sum(1) > 0)[0]; QY0, QY1 = qrows.min(), qrows.max() + 1
+# o QR é a maior mancha "preto e branco" do bloco
+bw = ndi.binary_closing(ba & (sat < .3), iterations=max(2, int(8 * K)))
+qlab, qn = ndi.label(bw)
+qsl = ndi.find_objects(qlab)[int(np.argmax(ndi.sum(bw, qlab, range(1, qn + 1))))]
+QY0, QY1, QX0, QX1 = qsl[0].start, qsl[0].stop, qsl[1].start, qsl[1].stop
 QR = blk[QY0:QY1, QX0:QX1].copy()
-QR_SHIFT = -60 * K                                   # abre espaço para a margem branca de leitura
+QR_SHIFT = 0 if VERT else -60 * K                    # no horizontal abre espaço para a margem branca de leitura
 QPAD = int(34 * K)                                   # "zona de silêncio" exigida pelos leitores de QR
-text_area = (xx >= QX1 + 10 * K) & ba
+qm = int(10 * K) + 4                                 # inclui a moldura dourada fina do QR
+qbox = np.zeros_like(ba); qbox[max(0, QY0 - qm):QY1 + qm, max(0, QX0 - qm):QX1 + qm] = True
+text_area = ba & ~qbox
 yel = text_area & (sat > .45)
 wht = text_area & (mn_ > .8) & (sat < .2)
-rows = np.where(yel.any(1))[0]; gaps = np.where(np.diff(rows) > 5 * K)[0]
-SPLIT = (rows[gaps[0]] + rows[gaps[0] + 1]) / 2
 def cut(mask):
     a = blk.copy(); a[..., 3] *= mask
     ys_, xs_ = np.where(a[..., 3] > .01)
     y0, y1, x0, x1 = ys_.min(), ys_.max() + 1, xs_.min(), xs_.max() + 1
     return dict(rgba=a[y0:y1, x0:x1], x=x0, y=y0, w=x1 - x0, h=y1 - y0, face=(a[y0:y1, x0:x1, 3] > .9).astype(np.float32))
 grow = lambda m: ndi.binary_dilation(m, iterations=2) & text_area
-LINE1 = cut(grow(yel & (yy < SPLIT)))
-LINE2 = cut(grow(yel & (yy >= SPLIT)))
-URL = cut(grow(wht))
-lab, n = ndi.label(wht)
-CHAR_END = sorted(s[1].stop - URL['x'] + 2 for s in ndi.find_objects(lab))
+# linhas amarelas da chamada, separadas pelos vãos verticais (acentos e cedilhas ficam com a linha)
+rows = np.where(yel.any(1))[0]
+br_ = np.where(np.diff(rows) > 5 * K)[0]
+bands = [(rows[i0], rows[i1] + 1) for i0, i1 in zip(np.r_[0, br_ + 1], np.r_[br_, len(rows) - 1])]
+main = [bd for bd in bands if bd[1] - bd[0] > 15 * K]
+edges = [main[0][0] - 1] + [(main[i][1] + main[i + 1][0]) / 2 for i in range(len(main) - 1)] + [H]
+LINES = [cut(grow(yel & (yy >= e0) & (yy < e1))) for e0, e1 in zip(edges[:-1], edges[1:])]
+URL = cut(grow(wht)) if wht.sum() > 50 * K else None    # endereço escrito é opcional
+if URL:
+    lab, n = ndi.label(wht)
+    CHAR_END = sorted(s[1].stop - URL['x'] + 2 for s in ndi.find_objects(lab))
 BLOCK_DY = 0
 
 # ---------- utilidades ----------
@@ -200,14 +211,15 @@ for f in range(int(FPS * DUR)):
                 fr[max(0, ya):yb, max(0, tx0):tx0 + th] = fr[max(0, ya):yb, max(0, tx0):tx0 + th] * (1 - p) + col * p
 
     # linhas da chamada
-    for Lr, t0 in ((LINE1, T_L1), (LINE2, T_L2)):
+    for li, Lr in enumerate(LINES):
+        t0 = T_L1 + li * (T_L2 - T_L1)
         p = prog(t, t0, t0 + .4)
         if p > 0:
             rgba = Lr['rgba']
-            gp = prog(t, GLINT_CTA + (.15 if Lr is LINE2 else 0), GLINT_CTA + .7 + (.15 if Lr is LINE2 else 0))
+            gp = prog(t, GLINT_CTA + .15 * li, GLINT_CTA + .7 + .15 * li)
             if 0 < gp < 1:
                 gy, gx = np.mgrid[0:Lr['h'], 0:Lr['w']]
-                band = np.exp(-((gx - (-200 + gp * (Lr['w'] + 400)) + gy * .5) / 50) ** 2) * Lr['face']
+                band = np.exp(-((gx - (-200 * K + gp * (Lr['w'] + 400 * K)) + gy * .5) / (50 * K)) ** 2) * Lr['face']
                 rgba = rgba.copy(); rgba[..., :3] += (band * .6)[..., None]
             lx = np.arange(Lr['w'])[None, :].repeat(Lr['h'], 0)
             edge = ease_out(p) * (Lr['w'] + 60 * K)
@@ -215,7 +227,7 @@ for f in range(int(FPS * DUR)):
             paste(fr, rgba, Lr['x'] + Lr['w'] / 2, Lr['y'] + Lr['h'] / 2 + BLOCK_DY + 25 * K * (1 - ease_out(p)), xmask=m)
 
     # endereço digitado, com cursor amarelo
-    if t >= T_TYPE:
+    if URL and t >= T_TYPE:
         nchar = int(len(CHAR_END) * prog(t, T_TYPE, T_TYPE_END) + .999)
         cut_x = CHAR_END[nchar - 1] if nchar else 0
         if nchar:
