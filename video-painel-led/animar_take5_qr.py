@@ -1,5 +1,5 @@
 """Take 5 (versão QR Code) — fitas rolando, QR Code "escaneado" na tela, chamada e endereço digitado.
-Uso: python3 take5_qr.py fundo.jpg fitas.png bloco_qr.png Anton.ttf saida.mp4 [duracao_s] [largura altura]
+Uso: python3 take5_qr.py fundo.jpg|preto fitas.png bloco_qr.png Anton.ttf saida.mp4 [duracao_s] [largura altura]
 O QR Code nunca é distorcido depois de pronto: fica parado, nítido e com margem branca para a leitura."""
 import numpy as np, subprocess, sys, math
 from PIL import Image, ImageDraw, ImageFont
@@ -16,7 +16,9 @@ def fit(im):
     im = im.convert('RGBA')
     return im if im.size == (W, H) else im.resize((W, H), Image.LANCZOS)
 
-bg = np.asarray(Image.open(BG_F).convert('RGB').resize((W, H), Image.LANCZOS)).astype(np.float32) / 255
+PRETO = BG_F == 'preto'                                      # 'preto' no lugar do arquivo = fundo preto liso, sem brilho
+bg = np.zeros((H, W, 3), np.float32) if PRETO else \
+    np.asarray(Image.open(BG_F).convert('RGB').resize((W, H), Image.LANCZOS)).astype(np.float32) / 255
 
 # ---------- fitas: medidas tiradas da arte (em 1920x1080) ----------
 tape_a = np.asarray(fit(Image.open(TAPE_F))).astype(np.float32) / 255
@@ -165,7 +167,7 @@ ff = subprocess.Popen(['ffmpeg', '-y', '-loglevel', 'error', '-f', 'rawvideo', '
 for f in range(int(FPS * DUR)):
     t = f / FPS
     fr = bg * (1 + .08 * math.sin(t * 1.5))
-    fr = fr + (np.exp(-(((xx - W / 2) / (W * .35)) ** 2 + ((yy - H * .5) / (H * .3)) ** 2)) * (.07 + .03 * math.sin(t * 2.2)))[..., None] * gold
+    if not PRETO: fr = fr + (np.exp(-(((xx - W / 2) / (W * .35)) ** 2 + ((yy - H * .5) / (H * .3)) ** 2)) * (.07 + .03 * math.sin(t * 2.2)))[..., None] * gold
 
     # cartão branco + QR revelado por um laser que desce
     p = prog(t, T_CARD, T_CARD + .3)
