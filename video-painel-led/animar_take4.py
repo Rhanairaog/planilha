@@ -8,7 +8,8 @@ BG_F, CARDS_F, BAR_F, OUT = sys.argv[1:5]
 DUR = float(sys.argv[5]) if len(sys.argv) > 5 else 6.0
 W, H = (int(sys.argv[6]), int(sys.argv[7])) if len(sys.argv) > 7 else (1920, 1080)
 FPS = 30
-K = W / 1920
+K = min(W, H) / 1080                             # escala pelo lado menor: vale para horizontal e vertical
+VERT = H > W
 
 b = Image.open(BG_F).convert('RGB')
 s = max(W / b.width, H / b.height)
@@ -18,25 +19,39 @@ bg_im = b.crop((ox, oy, ox + W, oy + H))
 yy, xx = np.mgrid[0:H, 0:W]
 
 # ---------- cartões: o PNG já vem posicionado em 1920x1080; separo os três pelo vão entre eles ----------
-cards_im = Image.open(CARDS_F).convert('RGBA')
-if cards_im.size != (W, H): cards_im = cards_im.resize((W, H), Image.LANCZOS)
+def fit_canvas(im):
+    """Camada que já vem posicionada numa tela: escala inteira para caber no quadro (sem cortar nem distorcer)."""
+    im = im.convert('RGBA')
+    if im.size == (W, H): return im
+    sc = min(W / im.width, H / im.height)
+    im = im.resize((round(im.width * sc), round(im.height * sc)), Image.LANCZOS)
+    out = Image.new('RGBA', (W, H)); out.paste(im, ((W - im.width) // 2, (H - im.height) // 2))
+    return out
+
+cards_im = fit_canvas(Image.open(CARDS_F))
 CA = np.asarray(cards_im).astype(np.float32) / 255
 lab, n = ndi.label(CA[..., 3] > .5)
-boxes = sorted([sl for sl in ndi.find_objects(lab) if sl[1].stop - sl[1].start > 100 * K], key=lambda sl: sl[1].start)
+boxes = sorted([sl for sl in ndi.find_objects(lab) if sl[1].stop - sl[1].start > 100 * K], key=lambda sl: (sl[0].start // int(60 * K), sl[1].start))   # linha por linha
 CARDS = []
 pad = int(25 * K)                                   # inclui o brilho dourado em volta da borda
-for sl in boxes:
+for k, sl in enumerate(boxes):
+    own = ndi.binary_dilation(lab == lab[sl][lab[sl] > 0][0], iterations=pad)   # só este cartão e o brilho dele
     y0, y1 = max(0, sl[0].start - pad), min(H, sl[0].stop + pad)
     x0, x1 = max(0, sl[1].start - pad), min(W, sl[1].stop + pad)
-    rgba = CA[y0:y1, x0:x1].copy()
+    rgba = CA[y0:y1, x0:x1].copy(); rgba[..., 3] *= own[y0:y1, x0:x1]
     CARDS.append(dict(rgba=rgba, face=(rgba[..., 3] > .9).astype(np.float32), cx=(x0 + x1) / 2, cy=(y0 + y1) / 2))
-CARDS_DY = 20 * K                                   # desce um pouco a fileira para equilibrar com a faixa
+CARDS_DY = 0 if VERT else 20 * K                                   # desce um pouco a fileira para equilibrar com a faixa
 
 # ---------- faixa "ATÉ 10X SEM JUROS!" ----------
 BAR_W, BAR_C = 1560, (960, 790)
-br = Image.open(BAR_F).convert('RGBA'); br = br.crop(br.getbbox())
-bs = BAR_W * K / br.width
-br = br.resize((round(br.width * bs), round(br.height * bs)), Image.LANCZOS)
+br = Image.open(BAR_F).convert('RGBA')
+if VERT:   # no vertical a arte já traz a posição do selo: mantém onde o designer colocou
+    full = fit_canvas(br); bb = full.getbbox(); br = full.crop(bb)
+    BAR_W, BAR_C = br.width / K, ((bb[0] + bb[2]) / 2 / K, (bb[1] + bb[3]) / 2 / K)
+else:
+    br = br.crop(br.getbbox())
+    bs = BAR_W * K / br.width
+    br = br.resize((round(br.width * bs), round(br.height * bs)), Image.LANCZOS)
 BAR = np.asarray(br).astype(np.float32) / 255
 BAR_FACE = (BAR[..., 3] > .9).astype(np.float32)
 BCX, BCY = BAR_C[0] * K, BAR_C[1] * K
