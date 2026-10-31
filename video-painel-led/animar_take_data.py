@@ -8,7 +8,7 @@ BG_F, CARD_F, OUT = sys.argv[1:4]
 DUR = float(sys.argv[4]) if len(sys.argv) > 4 else 6.0
 W, H = (int(sys.argv[5]), int(sys.argv[6])) if len(sys.argv) > 6 else (1920, 1080)
 FPS = 30
-K = W / 1920
+K = min(W, H) / 1080                  # escala pelo lado menor: vale para horizontal e vertical
 yy, xx = np.mgrid[0:H, 0:W]
 
 b = Image.open(BG_F).convert('RGB')
@@ -50,21 +50,43 @@ def region(mask):
 
 lab, n = ndi.label(content)
 objs = ndi.find_objects(lab)
-def pick(fn): return np.isin(lab, [k + 1 for k, sl in enumerate(objs) if fn(sl)])
-cy = lambda sl: (sl[0].start + sl[0].stop) / 2
-cx = lambda sl: (sl[1].start + sl[1].stop) / 2
-# faixas verticais dos elementos (em 1080): ícone e datas no topo, mês no meio, divisória, frase embaixo
-icon_r = (CX0, 680 * K)
-ICON = region(pick(lambda sl: cx(sl) < icon_r[1] and cy(sl) < 600 * K))
-L1 = pick(lambda sl: cx(sl) > icon_r[1] and cy(sl) < 455 * K)
-MONTH_LETTERS = sorted([region(lab == k + 1) for k, sl in enumerate(objs) if cx(sl) > icon_r[1] and 455 * K <= cy(sl) < 620 * K],
-                       key=lambda r: r['x'])
-DIV = region(pick(lambda sl: 640 * K <= cy(sl) < 690 * K))
-BOTTOM = region(pick(lambda sl: cy(sl) >= 690 * K))
-# datas: grupos "06," | "07" | "E" | "08" separados pelos vãos de coluna
-cols = np.where(L1.any(0))[0]
-cuts = [cols[0]] + [int((cols[i] + cols[i + 1]) / 2) for i in np.where(np.diff(cols) > 12 * K)[0]] + [cols[-1] + 1]
-GROUPS = [region(L1 & (xx >= a) & (xx < b)) for a, b in zip(cuts[:-1], cuts[1:])]
+area = lambda sl: (sl[0].stop - sl[0].start) * (sl[1].stop - sl[1].start)
+# ícone: o maior contorno (o calendário) + tudo que está dentro dele ou logo acima (as argolas)
+ib = objs[int(np.argmax([area(sl) for sl in objs]))]
+ih = ib[0].stop - ib[0].start
+in_icon = lambda sl: sl[1].start >= ib[1].start - 2 and sl[1].stop <= ib[1].stop + 2 and \
+    sl[0].start >= ib[0].start - ih * .2 and sl[0].stop <= ib[0].stop + 2
+ICON_IDS = [k + 1 for k, sl in enumerate(objs) if in_icon(sl)]
+ICON = region(np.isin(lab, ICON_IDS))
+# divisória: componente muito mais largo que alto
+div_ids = [k + 1 for k, sl in enumerate(objs) if (sl[1].stop - sl[1].start) > 15 * (sl[0].stop - sl[0].start)]
+DIV = region(np.isin(lab, div_ids))
+DIV_Y = DIV['y']
+text = content & ~np.isin(lab, ICON_IDS + div_ids)
+# linhas de texto acima da divisória (separadas pelos vãos na projeção vertical)
+def rows_of(mask):
+    r = np.where(mask.any(1))[0]
+    if len(r) == 0: return []
+    br = np.where(np.diff(r) > 3 * K + 1)[0]
+    return [(r[i0], r[i1] + 1) for i0, i1 in zip(np.r_[0, br + 1], np.r_[br, len(r) - 1])]
+above = text & (yy < DIV_Y)
+rows = [rw for rw in rows_of(above) if rw[1] - rw[0] > 12 * K]      # ignora acentos e vírgulas soltas
+yellow = (C[..., 0] > .7) & (C[..., 2] < .45) & content
+GROUPS, POPS, MONTH_LETTERS = [], [], []
+for y0, y1 in rows:
+    # junta acentos/descendentes que ficaram fora da faixa da linha
+    rmask = above & np.isin(lab, np.unique(lab[y0:y1][above[y0:y1]]))
+    rh = y1 - y0
+    words, nw = ndi.label(ndi.binary_dilation(rmask, structure=np.ones((1, 2 * max(1, int(rh * .09)) + 1))))
+    if (yellow & rmask).sum() > 20:          # linha das datas: números giram, palavras brancas só aparecem
+        for k in range(1, nw + 1):
+            wm = rmask & (words == k)
+            (GROUPS if (yellow & wm).sum() > .3 * wm.sum() else POPS).append(region(wm))
+    else:                                     # linha do mês: letras sobem uma a uma
+        MONTH_LETTERS += [region(lab == k) for k in np.unique(lab[rmask]) if k]
+GROUPS.sort(key=lambda g: (g['y'], g['x'])); POPS.sort(key=lambda g: (g['y'], g['x']))
+MONTH_LETTERS.sort(key=lambda r: (r['y'] // max(1, int(40 * K)), r['x']))
+BOTTOM = region(text & (yy > DIV_Y))
 
 # ---------- utilidades ----------
 clamp = lambda v, lo=0., hi=1.: max(lo, min(hi, v))
@@ -154,7 +176,6 @@ for f in range(int(FPS * DUR)):
         paste(fr, rgba, ICON['x'] + ICON['w'] / 2, ICON['y'] + ICON['h'] / 2 - 120 * K * (1 - back(p, 1.6)), alpha=min(1, p * 3))
 
     # datas: cada grupo gira dentro de uma janela e para, um depois do outro
-    win = (min(g['y'] for g in GROUPS) - 6 * K, max(g['y'] + g['h'] for g in GROUPS) + 6 * K)
     for i, g in enumerate(GROUPS):
         t_stop = T_REELS + .45 + i * REEL_STAG
         if t < T_REELS + i * .05: continue
@@ -164,11 +185,16 @@ for f in range(int(FPS * DUR)):
         rgba = g['rgba']
         if spin > .05:   # borrão vertical de movimento
             rgba = rgba.copy(); rgba[..., 3] = ndi.uniform_filter1d(rgba[..., 3], max(1, int(spin * 30 * K)), axis=0)
+        win = (g['y'] - 4 * K, g['y'] + g['h'] + 4 * K)
         for k in (-1, 0):
             paste(fr, rgba, g['x'] + g['w'] / 2, g['y'] + g['h'] / 2 + off + k * step, clip=win)
         if 0 < t - t_stop < .25:   # estalo de luz quando o rolo trava
             fr = fr + (np.exp(-(((xx - g['x'] - g['w'] / 2) / (90 * K)) ** 2 + ((yy - g['y'] - g['h'] / 2) / (70 * K)) ** 2))
                        * .45 * (1 - (t - t_stop) / .25))[..., None] * gold
+    # palavras brancas da linha das datas ("E", "DE"): só aparecem com um pulo
+    for i, g in enumerate(POPS):
+        p = prog(t, T_REELS + .5 + i * REEL_STAG, T_REELS + .8 + i * REEL_STAG)
+        if p > 0: paste(fr, g['rgba'], g['x'] + g['w'] / 2, g['y'] + g['h'] / 2, sx=back(p, 2.2), sy=back(p, 2.2), alpha=min(1, p * 3))
 
     # NOVEMBRO: letras sobem de baixo por uma janela, em sequência
     for i, L in enumerate(MONTH_LETTERS):
