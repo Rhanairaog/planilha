@@ -1,0 +1,5 @@
+file 'take1_alo_espirito_santo_v3.mp4'
+file 'take2_mega_saldao.mp4'
+file 'take3_70_desconto_v3.mp4'
+file 'take4_categorias_10x_v2.mp4'
+file 'take5_cadastro_site.mp4'
