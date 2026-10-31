@@ -8,7 +8,8 @@ BG_F, HEAD_F, BADGE_F, OUT = sys.argv[1:5]
 DUR = float(sys.argv[5]) if len(sys.argv) > 5 else 6.0
 W, H = (int(sys.argv[6]), int(sys.argv[7])) if len(sys.argv) > 7 else (1920, 1080)
 FPS = 30
-K = W / 1920
+K = min(W, H) / 1080                  # escala pelo lado menor: vale para horizontal e vertical
+VERT = H > W
 
 # ---------- fundo (escurecido) ----------
 b = Image.open(BG_F).convert('RGB')
@@ -21,12 +22,15 @@ yy, xx = np.mgrid[0:H, 0:W]
 # ---------- camadas ----------
 HEAD_W, HEAD_CY = 1450, 215          # chamada branca no topo
 BADGE_W, BADGE_C = 1380, (960, 665)  # selo 70% abaixo
+if VERT:                             # vertical: chamada em duas linhas no terço de cima, selo logo abaixo
+    HEAD_W, HEAD_CY = .88 * W / K, H * .33 / K
+    BADGE_W, BADGE_C = .9 * W / K, (W / 2 / K, H * .53 / K)
 
 h = Image.open(HEAD_F).convert('RGBA'); h = h.crop(h.getbbox())
 hs = HEAD_W * K / h.width
 h = h.resize((round(h.width * hs), round(h.height * hs)), Image.LANCZOS)
 HA = np.asarray(h).astype(np.float32) / 255
-hx0, hy0 = int(960 * K - h.width / 2), int(HEAD_CY * K - h.height / 2)
+hx0, hy0 = int(W / 2 - h.width / 2), int(HEAD_CY * K - h.height / 2)
 lab, n = ndi.label(HA[..., 3] > .5)
 sz = ndi.sum(np.ones(lab.shape), lab, range(1, n + 1))
 for k, v in enumerate(sz, 1):
@@ -39,7 +43,8 @@ for k in np.unique(lab[lab > 0]):
     ys, xs = np.where(a[..., 3] > .01)
     LETTERS.append(dict(rgba=a[ys.min():ys.max() + 1, xs.min():xs.max() + 1],
                         cx=hx0 + (xs.min() + xs.max()) / 2, cy=hy0 + (ys.min() + ys.max()) / 2))
-LETTERS.sort(key=lambda L: L['cx'])
+mid = (min(L['cy'] for L in LETTERS) + max(L['cy'] for L in LETTERS)) / 2
+LETTERS.sort(key=lambda L: (L['cy'] > mid + 10 * K, L['cx']))   # linha por linha, da esquerda para a direita
 
 bd = Image.open(BADGE_F).convert('RGBA'); bd = bd.crop(bd.getbbox())
 bs = BADGE_W * K / bd.width
@@ -86,7 +91,7 @@ warm = np.array([1., .93, .78], np.float32)
 dist_b = np.hypot(xx - BCX, yy - BCY); ang_b = np.arctan2(yy - BCY, xx - BCX)
 # escurecimento: mais forte nas bordas e atrás dos textos
 darken = .5 + .25 * np.exp(-(((xx - W / 2) / (W * .45)) ** 2 + ((yy - H * .55) / (H * .5)) ** 2))
-darken = darken * (1 - .4 * np.exp(-((yy - HEAD_CY * K) / (95 * K)) ** 2))   # faixa escura para a chamada
+darken = darken * (1 - .4 * np.exp(-((yy - HEAD_CY * K) / max(95 * K, h.height * .75)) ** 2))   # faixa escura para a chamada
 behind = np.exp(-(((xx - W / 2) / (W * .42)) ** 2 + ((yy - H * .52) / (H * .4)) ** 2))
 SPOTS = [(-150 * K, H + 120 * K), (W + 150 * K, H + 120 * K)]   # holofotes nos cantos de baixo
 spot_geo = [(np.arctan2(yy - sy, xx - sx), np.hypot(xx - sx, yy - sy)) for sx, sy in SPOTS]
