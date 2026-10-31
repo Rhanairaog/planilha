@@ -20,7 +20,7 @@ yy, xx = np.mgrid[0:H, 0:W]
 
 # ---------- camadas ----------
 HEAD_W, HEAD_CY = 1450, 215          # chamada branca no topo
-BADGE_W, BADGE_C = 1480, (960, 650)  # selo 70% abaixo
+BADGE_W, BADGE_C = 1380, (960, 665)  # selo 70% abaixo
 
 h = Image.open(HEAD_F).convert('RGBA'); h = h.crop(h.getbbox())
 hs = HEAD_W * K / h.width
