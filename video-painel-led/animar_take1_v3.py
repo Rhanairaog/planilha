@@ -1,4 +1,4 @@
-"""Take 1 — "Alô, Espírito Santo" em três batidas que terminam numa composição empilhada.
+"""Take 1 — "Alô, Espírito Santo" em três batidas que terminam numa composição empilhada (horizontal ou vertical).
 Uso: python3 render3.py fundo.webp alo.png espirito_santo.png faixa.png saida.mp4 [duracao_s] [largura altura]
 As camadas de texto são PNG 1920x1080 com transparência; só o recorte (bbox) de cada uma é usado."""
 import numpy as np, subprocess, sys, math
@@ -9,7 +9,8 @@ BG_F, ALO_F, ES_F, BAN_F, OUT = sys.argv[1:6]
 DUR = float(sys.argv[6]) if len(sys.argv) > 6 else 6.0
 W, H = (int(sys.argv[7]), int(sys.argv[8])) if len(sys.argv) > 8 else (1920, 1080)
 FPS = 30
-K = W / 1920                                  # layout desenhado em 1920 de largura
+K = min(W, H) / 1080                          # escala pelo lado menor: vale para horizontal e vertical
+VERT = H > W
 
 # ---------- fundo (cobre o quadro inteiro) ----------
 b = Image.open(BG_F).convert('RGB')
@@ -19,12 +20,22 @@ ox, oy = (b.width - W) // 2, (b.height - H) // 2
 bg = np.asarray(b.crop((ox, oy, ox + W, oy + H))).astype(np.float32) / 255
 yy, xx = np.mgrid[0:H, 0:W]
 lum = bg.mean(-1)
-gl = ndi.gaussian_filter(lum * (xx < W * .3), 25 * K)
+gl = ndi.gaussian_filter(lum * ((yy > H * .5) if VERT else (xx < W * .3)), 25 * K)   # vertical: giroflex embaixo
 SY, SX = np.unravel_index(gl.argmax(), gl.shape)          # centro do giroflex
 
 # ---------- camadas ----------
 # composição final (em 1920x1080): centro x, centro y e escala sobre o PNG original
 LOCK = dict(alo=(1150, 245, 1.1), es=(1150, 470, .85), ban=(1150, 725, .8))
+ALO_MID_X = None
+if VERT:   # vertical: ESPÍRITO SANTO e a faixa ficam onde a arte colocou; o ALÔ sobe para cima deles
+    def art(f):
+        im = Image.open(f); return im.getbbox(), W / im.width
+    (eb, cs), (bb, bs_) , (ab, as_) = art(ES_F), art(BAN_F), art(ALO_F)
+    LOCK['es'] = ((eb[0] + eb[2]) / 2 * cs / K, (eb[1] + eb[3]) / 2 * cs / K, cs / K)
+    LOCK['ban'] = ((bb[0] + bb[2]) / 2 * bs_ / K, (bb[1] + bb[3]) / 2 * bs_ / K, bs_ / K)
+    alo_h = (ab[3] - ab[1]) * as_
+    LOCK['alo'] = ((ab[0] + ab[2]) / 2 * as_ / K, (eb[1] * cs - 4 * K - alo_h / 2) / K, as_ / K)
+    ALO_MID_X = W / 2 / K
 
 def load(f, key):
     im = Image.open(f).convert('RGBA'); im = im.crop(im.getbbox())
@@ -46,7 +57,11 @@ def split(rgba, x0, y0, lab):
     for k in np.unique(lab[lab > 0]):
         a = rgba.copy(); a[..., 3] *= (near == k)
         out.append(piece(a, x0, y0, lab == k))
-    return sorted(out, key=lambda p: p['x'])
+    # linha por linha: corta no maior salto entre os centros verticais, se ele for maior que meia letra
+    cys = sorted(p['y'] + p['h'] / 2 for p in out); hm = np.median([p['h'] for p in out])
+    gaps = np.diff(cys) if len(cys) > 1 else np.array([0])
+    cut_y = cys[int(np.argmax(gaps))] + gaps.max() / 2 if gaps.max() > .5 * hm else 1e9
+    return sorted(out, key=lambda p: (p['y'] + p['h'] / 2 > cut_y, p['x']))
 
 A, ax, ay = load(ALO_F, 'alo')
 ALO = piece(A, ax, ay, A[..., 3] > .9)
@@ -61,12 +76,21 @@ LETTERS = split(E, ex, ey, lab)
 Bn, bx, by = load(BAN_F, 'ban')
 c, a = Bn[..., :3], Bn[..., 3]
 dark = (a > .5) & (c.max(-1) < .35)
+# contorno preto da faixa (se houver): o componente escuro que abraça a faixa inteira não é texto
+dl, dn = ndi.label(ndi.binary_dilation(dark, iterations=1))
+if dn:
+    dsl = ndi.find_objects(dl)
+    big = [k + 1 for k, sl in enumerate(dsl) if (sl[1].stop - sl[1].start) > .8 * a.shape[1]]
+    OUTLINE = np.isin(dl, big)
+else:
+    OUTLINE = np.zeros_like(dark)
+dark = dark & ~OUTLINE
 yellow = np.median(c[(a > .9) & ~dark], axis=0)
-ink = ndi.binary_dilation((a > .1) & (c.max(-1) < .8), iterations=2)   # letras + bordas suavizadas
+ink = ndi.binary_dilation((a > .1) & (c.max(-1) < .8) & ~OUTLINE, iterations=2) & ~OUTLINE   # letras + bordas suavizadas
 bar = Bn.copy(); bar[..., :3] = np.where(ink[..., None], yellow, c)     # faixa lisa, sem letras
 BAR = piece(bar, bx, by, (a > .9) & ~ink)
 # palavras: letras ligadas por uma dilatação horizontal curta (menor que o espaço entre palavras)
-r = max(1, int(3 * K))
+hs_ = ndi.find_objects(ndi.label(dark)[0]); r = max(1, round(.09 * np.median([sl[0].stop - sl[0].start for sl in hs_])))   # ~espaço entre letras
 wl, nw = ndi.label(ndi.binary_dilation(dark, structure=np.ones((1, 2 * r + 1)), iterations=1))
 wsz = ndi.sum(np.ones(wl.shape), wl, range(1, nw + 1))
 for k, sz in enumerate(wsz, 1):
@@ -109,15 +133,16 @@ def glint(lay, p, offset=0, width=45):
 orange = np.array([1., .55, .08], np.float32)
 ang = np.arctan2(yy - SY, xx - SX); dist = np.hypot(xx - SX, yy - SY)
 siren_core = np.exp(-(dist / (70 * K)) ** 2 / 2); siren_wide = np.exp(-(dist / (380 * K)) ** 2 / 2)
-water = ndi.gaussian_filter(((yy > H * .43) & (xx > W * .34) & (xx < W * .72)).astype(np.float32), 30 * K)[..., None]
-lights = ((lum > .62) & (yy > H * .28) & (yy < H * .5) & (xx > W * .3)).astype(np.float32)
+water = 0 if VERT else ndi.gaussian_filter(((yy > H * .43) & (xx > W * .34) & (xx < W * .72)).astype(np.float32), 30 * K)[..., None]
+lights = 0 * lum if VERT else ((lum > .62) & (yy > H * .28) & (yy < H * .5) & (xx > W * .3)).astype(np.float32)
 lights = ndi.gaussian_filter(lights, 1.2)[..., None]
 lphase = ndi.gaussian_filter(np.random.default_rng(3).uniform(0, 6.28, (H, W)).astype(np.float32), 2)[..., None]
-rays = ((bg[..., 0] > .8) & (bg[..., 1] > .65) & (bg[..., 2] < .3) & (xx < W * .3) & (dist > 160 * K)).astype(np.float32)
+rays = ((bg[..., 0] > .8) & (bg[..., 1] > .65) & (bg[..., 2] < .3) & ((yy > H * .5) if VERT else (xx < W * .3)) & (dist > 160 * K)).astype(np.float32)
 rays = ndi.gaussian_filter(rays, 3 * K)[..., None]
 vign = (1 - .22 * (((xx - W / 2) / (W / 2)) ** 2 + ((yy - H / 2) / (H / 2)) ** 2)).astype(np.float32)[..., None]
 # véu escuro atrás do bloco de texto, para leitura à distância no painel
-veil = ndi.gaussian_filter(((xx > 520 * K) & (xx < 1780 * K) & (yy > 120 * K) & (yy < 840 * K)).astype(np.float32), 90 * K)[..., None]
+vbox = ((xx > W * .04) & (xx < W * .96) & (yy > H * .17) & (yy < H * .74)) if VERT else ((xx > 520 * K) & (xx < 1780 * K) & (yy > 120 * K) & (yy < 840 * K))
+veil = ndi.gaussian_filter(vbox.astype(np.float32), 90 * K)[..., None]
 
 rng = np.random.default_rng(7); NP = 70
 P = dict(x=rng.uniform(0, W, NP), y=rng.uniform(0, H, NP), v=rng.uniform(40, 140, NP) * K,
@@ -131,6 +156,8 @@ T_BAR, T_WORDS = 2.75, 2.95          # faixa se estende, palavras saltam
 ES_LAND = T_ES + STAG * (len(LETTERS) - 1) + .25
 IMPACTS = ((T_ALO + .22, 24, .45), (ES_LAND, 16, .25), (T_WORDS + .09 * (len(WORDS) - 1) + .2, 8, .0))
 ALO_BIG, ALO_MID_Y = 1.9 / 1.1, 520  # escala e altura do ALÔ na primeira batida
+if VERT: ALO_BIG, ALO_MID_Y = 1.55, H * .42 / K
+if ALO_MID_X is None: ALO_MID_X = LOCK['alo'][0]
 
 def shake(t):
     s = sum(amp * math.exp(-(t - t0) * 9) for t0, amp, _ in IMPACTS if t >= t0) * K
@@ -166,7 +193,8 @@ for f in range(int(FPS * DUR)):
         big = ALO_BIG * (1 + .05 * prog(t, T_ALO + .25, T_ALO_UP))
         sc = (big + 1.4 * (1 - ease_out(p))) * (1 - m) + m * 1.0
         dy = (ALO_MID_Y - LOCK['alo'][1]) * K * (1 - m)
-        paste(fr, ALO, scale=sc * breathe, alpha=min(1, p * 3), dy=dy, rot=12 * (1 - p),
+        dx = (ALO_MID_X - LOCK['alo'][0]) * K * (1 - m)
+        paste(fr, ALO, scale=sc * breathe, alpha=min(1, p * 3), dx=dx, dy=dy, rot=12 * (1 - p),
               extra=glint(ALO, prog(t, 5.0, 5.5), width=35))
 
     # 2) ESPÍRITO SANTO — letras sobem em cascata e assentam com quique
