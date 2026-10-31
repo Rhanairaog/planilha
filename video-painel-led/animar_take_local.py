@@ -8,24 +8,33 @@ BG_F, ADDR_F, OUT = sys.argv[1:4]
 DUR = float(sys.argv[4]) if len(sys.argv) > 4 else 6.0
 W, H = (int(sys.argv[5]), int(sys.argv[6])) if len(sys.argv) > 6 else (1920, 1080)
 FPS = 30
-K = W / 1920
+K = min(W, H) / 1080                  # escala pelo lado menor: vale para horizontal e vertical
+VERT = H > W
 yy, xx = np.mgrid[0:H, 0:W]
 
 bg_im = Image.open(BG_F).convert('RGB').resize((W, H), Image.LANCZOS)
 bgl = np.asarray(bg_im.convert('L')).astype(np.float32) / 255
 PHOTO_TOP = int(np.argmax(bgl.mean(1) > .08))            # onde a foto começa (acima é preto)
 
-# placa do TIMS na foto (medida na arte, em 1920x1080): x 910–1092, y 612–740
-SIGN_X, SIGN_Y = 1001 * K, 676 * K
-SIGN_TOP, SIGN_W = 612 * K, 182 * K
+# placa do TIMS na foto, em fração da imagem (medida nas artes):
+#   horizontal 1920x1080: x 910–1092, y 612–740 | vertical 887x1774: x 392–504, y 1355–1432
+SX0, SX1, SY0, SY1 = (392 / 887, 504 / 887, 1355 / 1774, 1432 / 1774) if VERT else (910 / 1920, 1092 / 1920, 612 / 1080, 740 / 1080)
+SIGN_X, SIGN_Y = (SX0 + SX1) / 2 * W, (SY0 + SY1) / 2 * H
+SIGN_TOP, SIGN_W = SY0 * H, (SX1 - SX0) * W
 
 # ---------- endereço: pino | linha amarela | linha branca ----------
 A = np.asarray(Image.open(ADDR_F).convert('RGBA').resize((W, H), Image.LANCZOS)).astype(np.float32) / 255
 al = A[..., 3] > .3
 mx_, mn_ = A[..., :3].max(-1), A[..., :3].min(-1)
 sat = (mx_ - mn_) / (mx_ + 1e-3)
-cols = np.where(al.any(0))[0]
-PIN_X1 = cols[np.where(np.diff(cols) > 20 * K)[0][0]] + 1          # fim do pino (primeiro vão grande)
+if VERT:   # pino em cima, texto embaixo: o pino é o primeiro bloco na vertical
+    rws = np.where(al.any(1))[0]
+    PIN_Y1 = rws[np.where(np.diff(rws) > 15 * K)[0][0]] + 1
+    pin_m = al & (yy < PIN_Y1); txt_m = al & (yy >= PIN_Y1)
+else:      # pino à esquerda: termina no primeiro vão grande entre colunas
+    cols = np.where(al.any(0))[0]
+    PIN_X1 = cols[np.where(np.diff(cols) > 20 * K)[0][0]] + 1
+    pin_m = al & (xx < PIN_X1); txt_m = al & (xx >= PIN_X1)
 ys_, _ = np.where(al)
 DY = (PHOTO_TOP - 40 * K) / 2 - (ys_.min() + ys_.max()) / 2       # centraliza o bloco na faixa preta
 def cut(mask):
@@ -33,9 +42,9 @@ def cut(mask):
     ys, xs = np.where(a[..., 3] > .01)
     y0, y1, x0, x1 = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
     return dict(rgba=a[y0:y1, x0:x1], x=x0, y=y0 + DY, w=x1 - x0, h=y1 - y0, face=(a[y0:y1, x0:x1, 3] > .9).astype(np.float32))
-PIN = cut(al & (xx < PIN_X1))
-LINE1 = cut(al & (xx >= PIN_X1) & (sat > .4))
-LINE2 = cut(al & (xx >= PIN_X1) & (mn_ > .75) & (sat < .25))
+PIN = cut(pin_m)
+LINE1 = cut(txt_m & (sat > .4))
+LINE2 = cut(txt_m & (mn_ > .75) & (sat < .25))
 
 # ---------- utilidades ----------
 clamp = lambda v, lo=0., hi=1.: max(lo, min(hi, v))
@@ -73,8 +82,13 @@ def glint(L, p):
 yellow = np.array([1., .85, .05], np.float32)
 PIN_TIP = (PIN['x'] + PIN['w'] / 2, PIN['y'] + PIN['h'])
 # rota tracejada do pino até a placa (curva de Bézier passando por baixo do texto)
-P0 = np.array([PIN_TIP[0], PIN_TIP[1] + 25 * K]); P3 = np.array([SIGN_X, SIGN_TOP - 18 * K])
-P1 = P0 + np.array([60 * K, (P3[1] - P0[1]) * 1.3]); P2 = np.array([(P0[0] + P3[0]) * .55, P3[1] - 150 * K])
+P3 = np.array([SIGN_X, SIGN_TOP - 18 * K])
+if VERT:   # no vertical o texto fica entre o pino e a placa: a rota sai de baixo do texto, em "S"
+    P0 = np.array([W / 2, LINE2['y'] + LINE2['h'] + 30 * K])
+    P1 = P0 + np.array([110 * K, (P3[1] - P0[1]) * .35]); P2 = P3 + np.array([-110 * K, -(P3[1] - P0[1]) * .35])
+else:
+    P0 = np.array([PIN_TIP[0], PIN_TIP[1] + 25 * K])
+    P1 = P0 + np.array([60 * K, (P3[1] - P0[1]) * 1.3]); P2 = np.array([(P0[0] + P3[0]) * .55, P3[1] - 150 * K])
 ts = np.linspace(0, 1, 400)[:, None]
 ROUTE = ((1 - ts) ** 3 * P0 + 3 * (1 - ts) ** 2 * ts * P1 + 3 * (1 - ts) * ts ** 2 * P2 + ts ** 3 * P3)
 seg = np.r_[0, np.cumsum(np.hypot(*np.diff(ROUTE, axis=0).T))]
