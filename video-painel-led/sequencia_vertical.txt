@@ -1,0 +1,7 @@
+file 'take1_alo_espirito_santo_514x1028.mp4'
+file 'take2_mega_saldao_514x1028.mp4'
+file 'take3_70_desconto_514x1028.mp4'
+file 'take4_categorias_10x_514x1028.mp4'
+file 'take_data_06_07_08_novembro_514x1028.mp4'
+file 'take_local_tims_carpina_514x1028.mp4'
+file 'take5_cadastro_qrcode_514x1028.mp4'
