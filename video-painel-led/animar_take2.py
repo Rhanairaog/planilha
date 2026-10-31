@@ -1,5 +1,6 @@
 """Take 2 — galpão do outlet + selo "Mega Saldão Engage Eletro Outlet".
-Uso: python3 take2.py fundo.webp selo.webp saida.mp4 [duracao_s] [largura altura]"""
+Uso: python3 take2.py fundo.webp selo.webp saida.mp4 [duracao_s] [largura altura]
+Para painel vertical, passe por exemplo 1080 1920."""
 import numpy as np, subprocess, sys, math
 from PIL import Image, ImageFilter
 from scipy import ndimage as ndi
@@ -8,7 +9,8 @@ BG_F, LOGO_F, OUT = sys.argv[1:4]
 DUR = float(sys.argv[4]) if len(sys.argv) > 4 else 6.0
 W, H = (int(sys.argv[5]), int(sys.argv[6])) if len(sys.argv) > 6 else (1920, 1080)
 FPS = 30
-K = W / 1920
+K = min(W, H) / 1080                             # escala pelo lado menor: vale para horizontal e vertical
+VERT = H > W
 
 # ---------- fundo ----------
 b = Image.open(BG_F).convert('RGB')
@@ -16,11 +18,15 @@ s = max(W / b.width, H / b.height)
 b = b.resize((math.ceil(b.width * s), math.ceil(b.height * s)), Image.LANCZOS)
 ox, oy = (b.width - W) // 2, (b.height - H) // 2
 bg_im = b.crop((ox, oy, ox + W, oy + H))
+if s > 1.5: bg_im = bg_im.filter(ImageFilter.UnsharpMask(radius=2, percent=90, threshold=2))   # fundo pequeno ampliado
 yy, xx = np.mgrid[0:H, 0:W]
 
 # ---------- selo ----------
 LOGO_H = 880                                   # altura do selo no quadro (em 1080)
 LCX, LCY = 960, 545
+if VERT:                                       # vertical: selo pela largura, um pouco acima do centro
+    LOGO_H = .86 * W / K * 1306 / 1205
+    LCX, LCY = W / 2 / K, H * .44 / K
 lg = Image.open(LOGO_F).convert('RGBA'); lg = lg.crop(lg.getbbox())
 ls = LOGO_H * K / lg.height
 LAMPS = [(240, 190), (605, 95), (980, 225)]    # lâmpadas vermelhas, em pixels do selo original
@@ -61,7 +67,7 @@ dist_c = np.hypot(xx - LCX * K, yy - LCY * K); ang_c = np.arctan2(yy - LCY * K, 
 backdrop = np.exp(-(dist_c / (520 * K)) ** 2)[..., None].astype(np.float32)
 burst_fall = np.exp(-dist_c / (700 * K)).astype(np.float32)
 # feixes de sol entrando pelo portão do galpão (alto, à esquerda do centro)
-GX, GY = 560 * K, -60 * K
+GX, GY = (W * .5, -60 * K) if VERT else (560 * K, -60 * K)
 ang_g = np.arctan2(yy - GY, xx - GX); dist_g = np.hypot(xx - GX, yy - GY)
 vign = (1 - .25 * (((xx - W / 2) / (W / 2)) ** 2 + ((yy - H / 2) / (H / 2)) ** 2)).astype(np.float32)[..., None]
 
