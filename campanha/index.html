@@ -227,6 +227,9 @@ textarea.short{min-height:110px;margin-bottom:6px}
 .phase-notes:focus{background:var(--surface);border-style:solid;border-color:var(--accent);outline:none}
 .phase-notes::placeholder{color:var(--muted)}
 .phase-saved{font-size:12px;color:var(--muted);min-height:16px;padding-left:2px}
+.pdf-btn{border:1px solid var(--accent);background:var(--surface);color:var(--accent);font-weight:600;font-size:13.5px;padding:7px 14px;border-radius:99px}
+.pdf-btn:hover{background:var(--accent-soft)}
+.pdf-btn:disabled{opacity:.6;cursor:progress}
 .toast button{border:0;background:transparent;color:var(--bg);font-weight:700;text-decoration:underline;padding:4px 6px}
 
 @media (max-width:760px){
@@ -247,6 +250,8 @@ textarea.short{min-height:110px;margin-bottom:6px}
       <p>Todas as peças da campanha na ordem de produção. Toque em uma peça para marcar etapas, mudar o status e escrever as anotações dela.</p>
       <div class="top-links">
         <a class="drive" href="https://drive.google.com/drive/folders/1MD19hBnKUnimQ6OzfnHnpJRTTJ09BwyK?usp=sharing" target="_blank" rel="noopener">Abrir a pasta da campanha no Drive ↗</a>
+        <button class="pdf-btn" id="pdf" type="button" hidden>Baixar PDF</button>
+        <span class="saved" id="pdf-msg" aria-live="polite"></span>
         <div class="sync" id="sync" data-on="0"><i></i><span>Conectando ao salvamento…</span></div>
       </div>
     </div>
@@ -1137,6 +1142,134 @@ document.addEventListener("keydown", e => {
 });
 $("#q").addEventListener("input", e => { query = e.target.value.trim().toLowerCase(); render(); });
 
+/* ---------- PDF ----------
+   Relatório montado na hora com o que está salvo; a fonte padrão do PDF só tem
+   os caracteres do português ocidental, então o resto é retirado do texto. */
+let jspdfReady = null;
+function loadJsPdf(){
+  if (!jspdfReady) jspdfReady = new Promise((res, rej) => {
+    const sc = document.createElement("script");
+    sc.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+    sc.onload = () => res(window.jspdf.jsPDF);
+    sc.onerror = () => { jspdfReady = null; rej(new Error("jspdf")); };
+    document.head.append(sc);
+  });
+  return jspdfReady;
+}
+const CP1252 = "€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ";
+const clean = t => String(t || "").replace(/\t/g, "  ").replace(/\r/g, "").split("").filter(c => c === "\n" || (c.charCodeAt(0) >= 32 && c.charCodeAt(0) < 256) || CP1252.includes(c)).join("");
+const PDF_COLORS = {ink:[30,26,36], muted:[107,100,117], line:[219,214,224], accent:[140,29,71],
+  fazer:[138,132,148], criando:[154,91,0], revisao:[36,94,168], pronta:[31,117,71]};
+async function buildPdf(){
+  const JsPDF = await loadJsPdf();
+  const doc = new JsPDF({unit:"mm", format:"a4"});
+  const W = 210, H = 297, M = 16, CW = W - 2 * M;
+  let y = M;
+  const color = c => doc.setTextColor(...PDF_COLORS[c]);
+  const ensure = h => { if (y + h > H - M - 6) { doc.addPage(); y = M; } };
+  const para = (text, {size = 10, style = "normal", c = "ink", x = M, w = CW, lh = 1.38, font = "helvetica"} = {}) => {
+    doc.setFont(font, style); doc.setFontSize(size); color(c);
+    const lines = doc.splitTextToSize(clean(text), w), step = size * 0.3528 * lh;
+    lines.forEach(l => { ensure(step); doc.text(l, x, y + size * 0.3528); y += step; });
+  };
+  const live = active(), total = live.length;
+  const counts = Object.fromEntries(STATUS.map(st => [st.id, 0]));
+  live.forEach(p => counts[get(p.id).status]++);
+  const now = new Date();
+
+  para("Checklist dos Drops", {size: 22, style: "bold"});
+  y += 1;
+  para(`Campanha · Drops 1, 2 e 3 · gerado em ${now.toLocaleDateString("pt-BR")} às ${now.toLocaleTimeString("pt-BR", {hour:"2-digit", minute:"2-digit"})}`, {size: 9.5, c: "muted"});
+  y += 4;
+  para(`${counts.pronta} de ${total} peças prontas (${total ? Math.round(counts.pronta / total * 100) : 0}%)`, {size: 12, style: "bold"});
+  y += 1.5;
+  let bx = M;
+  doc.setFillColor(239, 237, 242); doc.roundedRect(M, y, CW, 3, 1.5, 1.5, "F");
+  ["pronta", "revisao", "criando"].forEach(k => { const w = total ? CW * counts[k] / total : 0; if (w) { doc.setFillColor(...PDF_COLORS[k]); doc.rect(bx, y, w, 3, "F"); bx += w; } });
+  y += 7;
+  para(STATUS.slice().reverse().map(st => `${st.nome}: ${counts[st.id]}`).join("     "), {size: 9.5, c: "muted"});
+  y += 4;
+
+  PHASES.forEach((f, i) => {
+    const pieces = live.filter(p => p.fase === f.id), notas = (fases[f.id] && fases[f.id].notas || "").trim();
+    ensure(24);
+    doc.setDrawColor(...PDF_COLORS.accent); doc.setLineWidth(0.6); doc.line(M, y, W - M, y);
+    y += 6;
+    doc.setFont("helvetica", "bold"); doc.setFontSize(15); color("accent"); doc.text(String(i + 1), M, y);
+    color("ink"); doc.text(clean(phaseName(f.id)), M + 8, y);
+    const ready = pieces.filter(p => get(p.id).status === "pronta").length;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(9.5); color("muted");
+    doc.text(`${ready}/${pieces.length} prontas`, W - M, y, {align: "right"});
+    y += 4;
+    if (notas) { y += 1; para(notas, {size: 9.5, style: "italic", c: "ink"}); }
+    y += 3;
+    if (!pieces.length) { para("Nenhuma atividade nesta etapa.", {size: 9.5, c: "muted"}); y += 3; }
+    pieces.forEach(p => {
+      const st = get(p.id), subs = subsOf(p);
+      ensure(16);
+      doc.setFont("courier", "normal"); doc.setFontSize(8.5); color("muted"); doc.text(clean(p.code), M, y + 3.6);
+      doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(...PDF_COLORS[st.status]);
+      doc.text(statusName(st.status).toUpperCase(), W - M, y + 3.6, {align: "right"});
+      para(p.nome, {size: 11.5, style: "bold", x: M + 17, w: CW - 17 - 28});
+      const meta = [`${checkCount(p)}/${subs.length} etapas`];
+      if (st.prazo) meta.push("Prazo " + st.prazo.split("-").reverse().join("/"));
+      if (p.dep && st.status !== "pronta") meta.push(p.dep);
+      para(meta.join(" · "), {size: 9, c: "muted", x: M + 17, w: CW - 17});
+      if (p.brief) { y += 0.8; para(p.brief, {size: 9, c: "muted", x: M + 17, w: CW - 17}); }
+      y += 1.5;
+      subs.forEach(x => {
+        const done = !!st.checks[x.id];
+        const lines = (doc.setFont("helvetica", "normal"), doc.setFontSize(9.5), doc.splitTextToSize(clean(x.t), CW - 24));
+        ensure(lines.length * 4.6);
+        doc.setDrawColor(...PDF_COLORS[done ? "pronta" : "muted"]); doc.setLineWidth(0.3);
+        doc.rect(M + 17, y + 0.6, 3, 3);
+        if (done) { doc.setLineWidth(0.5); doc.line(M + 17.6, y + 2.2, M + 18.4, y + 3); doc.line(M + 18.4, y + 3, M + 19.6, y + 1.2); }
+        para(x.t, {size: 9.5, c: done ? "muted" : "ink", x: M + 22, w: CW - 24, lh: 1.3});
+      });
+      if (st.notas.trim()) { y += 1.5; para("Anotações", {size: 8.5, style: "bold", c: "accent", x: M + 17}); para(st.notas.trim(), {size: 9.5, x: M + 17, w: CW - 17}); }
+      if (st.link) { y += 1; para("Link: " + st.link, {size: 8.5, c: "muted", x: M + 17, w: CW - 17}); }
+      if (st.arquivos.length) { y += 1; para("Arquivos: " + st.arquivos.map(a => a.nome).join(", "), {size: 8.5, c: "muted", x: M + 17, w: CW - 17}); }
+      y += 3;
+      ensure(3); doc.setDrawColor(...PDF_COLORS.line); doc.setLineWidth(0.2); doc.line(M + 17, y, W - M, y);
+      y += 4;
+    });
+    y += 3;
+  });
+
+  const arqs = geral.arquivos, lks = links || [];
+  if (arqs.length || lks.length) {
+    ensure(24);
+    doc.setDrawColor(...PDF_COLORS.accent); doc.setLineWidth(0.6); doc.line(M, y, W - M, y); y += 6;
+    doc.setFont("helvetica", "bold"); doc.setFontSize(15); color("ink"); doc.text("Material de apoio", M, y); y += 6;
+    if (arqs.length) { para("Arquivos", {size: 10, style: "bold", c: "accent"}); arqs.forEach(a => para("•  " + a.nome, {size: 9.5})); y += 3; }
+    if (lks.length) {
+      para("Links", {size: 10, style: "bold", c: "accent"});
+      lks.forEach(l => { para("•  " + l.titulo + (l.nota ? " — " + l.nota : ""), {size: 9.5}); para(l.url, {size: 8.5, c: "muted", x: M + 4, w: CW - 4}); y += 1; });
+    }
+  }
+
+  const n = doc.getNumberOfPages();
+  for (let i = 1; i <= n; i++) {
+    doc.setPage(i); doc.setFont("helvetica", "normal"); doc.setFontSize(8); color("muted");
+    doc.text("Checklist dos Drops", M, H - 9);
+    doc.text(`Página ${i} de ${n}`, W - M, H - 9, {align: "right"});
+  }
+  return doc.output("blob");
+}
+$("#pdf").onclick = async () => {
+  const btn = $("#pdf"), msg = $("#pdf-msg");
+  btn.disabled = true; msg.textContent = "Montando o PDF…";
+  try {
+    const blob = await buildPdf();
+    msg.textContent = "";
+    const d = new Date(), stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    await downloads.save({filename: `checklist-dos-drops-${stamp}.pdf`, data: blob});
+  } catch (e) {
+    const code = e && e.code;
+    msg.textContent = code === "declined" ? "" : code === "rate_limited" ? "Espere um instante e tente de novo." : "Não foi possível gerar o PDF. Tente de novo.";
+  } finally { btn.disabled = false; }
+};
+
 /* ---------- início ---------- */
 Object.assign(state, lsLoad());
 try { Object.assign(fases, JSON.parse(localStorage.getItem(LS_KEY + "-fases") || "{}")); } catch {}
@@ -1146,6 +1279,7 @@ setSync("0", "Conectando ao salvamento…");
   const use = name => (window.claude && window.claude.use ? window.claude.use(name) : Promise.resolve(null)).catch(() => null);
   [db, assets, downloads] = await Promise.all([use("db"), use("assets"), use("downloads")]);
   if (!db) assets = null;
+  $("#pdf").hidden = !downloads;
   $("#apoio-drop").replaceChildren(dropZone("up-geral", list => { geral.arquivos = [...geral.arquivos, ...list]; renderApoio(); saveGeral(); }));
   if (openId) $("#p-drop").replaceChildren(pieceDrop(openId));
   renderApoio();
