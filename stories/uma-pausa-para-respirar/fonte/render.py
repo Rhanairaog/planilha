@@ -144,8 +144,8 @@ def frame(t):
         lo, lw = lines_layer(t, headB, [0] * n)
         B = over(B, ORANGE, lo * (1 - mat))   # laranja passa por trás do tapete, como na arte
         B = over(B, WHITE, lw)                # branca passa por cima
-        B = over(B, WHITE, staggered_reveal(cta_top, t, 11.5, 0.7, 0.3, rise=22, x0=350, x1=710))
-        B = over(B, WHITE, staggered_reveal(cta_bot, t, 11.95, 0.7, 0.3, rise=18, x0=380, x1=680))
+        B = over(B, WHITE, staggered_reveal(cta_top, t, 11.25, 0.7, 0.3, rise=22, x0=350, x1=710))
+        B = over(B, WHITE, staggered_reveal(cta_bot, t, 11.72, 0.7, 0.3, rise=18, x0=380, x1=680))
         scB = 1.0 + 0.045 * float(ease((t - 8.9) / 6.1))
         B = zoom(B, scB)
         frameimg = A * (1 - xf) + B * xf if xf < 1 else B
